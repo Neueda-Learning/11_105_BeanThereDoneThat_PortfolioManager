@@ -3,7 +3,6 @@ package com.beantheredonethat.portfoliomanager.service;
 import com.beantheredonethat.portfoliomanager.dto.CreatePortfolioRequest;
 import com.beantheredonethat.portfoliomanager.dto.PortfolioResponse;
 import com.beantheredonethat.portfoliomanager.dto.UpdatePortfolioRequest;
-import com.beantheredonethat.portfoliomanager.entity.Customer;
 import com.beantheredonethat.portfoliomanager.entity.Portfolio;
 import com.beantheredonethat.portfoliomanager.exception.CustomerNotFoundException;
 import com.beantheredonethat.portfoliomanager.exception.PortfolioNotFoundException;
@@ -26,11 +25,11 @@ public class PortfolioService {
     }
 
     public PortfolioResponse createPortfolio(CreatePortfolioRequest request) {
-        Customer customer = customerRepository.findById(request.getCustomerId())
+        customerRepository.findById(request.getCustomerId())
             .orElseThrow(() -> new CustomerNotFoundException(
                         "Customer not found with ID: " + request.getCustomerId()));
 
-        Portfolio portfolio = new Portfolio(customer, request.getPortfolioName());
+        Portfolio portfolio = new Portfolio(request.getCustomerId(), request.getPortfolioName());
         Portfolio saved = portfolioRepository.save(portfolio);
         return toResponse(saved);
     }
@@ -54,7 +53,7 @@ public class PortfolioService {
             .orElseThrow(() -> new CustomerNotFoundException(
                         "Customer not found with ID: " + customerId));
 
-        return portfolioRepository.findByCustomerCustomerId(customerId)
+        return portfolioRepository.findByCustomerId(customerId)
                 .stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
