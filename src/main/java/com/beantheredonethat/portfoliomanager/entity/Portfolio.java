@@ -1,34 +1,22 @@
 package com.beantheredonethat.portfoliomanager.entity;
 
-import jakarta.persistence.*;
-
-@Entity
-@Table(name = "Portfolio")
 public class Portfolio {
 
-	@Id
-	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	@Column(name = "portfolio_id")
 	private Integer portfolioId;
-
-	@ManyToOne(fetch = FetchType.LAZY, optional = false)
-	@JoinColumn(name = "customer_id", nullable = false)
-	private Customer customer;
-
-	@Column(name = "portfolio_name", nullable = false)
+	private Integer customerId;
 	private String portfolioName;
 
 	public Portfolio() {
 	}
 
-	public Portfolio(Integer portfolioId, Customer customer, String portfolioName) {
+	public Portfolio(Integer portfolioId, Integer customerId, String portfolioName) {
 		this.portfolioId = portfolioId;
-		this.customer = customer;
+		this.customerId = customerId;
 		this.portfolioName = portfolioName;
 	}
 
-	public Portfolio(Customer customer, String portfolioName) {
-		this.customer = customer;
+	public Portfolio(Integer customerId, String portfolioName) {
+		this.customerId = customerId;
 		this.portfolioName = portfolioName;
 	}
 
@@ -40,12 +28,12 @@ public class Portfolio {
 		this.portfolioId = portfolioId;
 	}
 
-	public Customer getCustomer() {
-		return customer;
+	public Integer getCustomerId() {
+		return customerId;
 	}
 
-	public void setCustomer(Customer customer) {
-		this.customer = customer;
+	public void setCustomerId(Integer customerId) {
+		this.customerId = customerId;
 	}
 
 	public String getPortfolioName() {

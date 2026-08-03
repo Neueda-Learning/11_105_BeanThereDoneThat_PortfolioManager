@@ -19,7 +19,7 @@ public class PortfolioResponse {
 
     public PortfolioResponse(Portfolio portfolio) {
         this.portfolioId = portfolio.getPortfolioId();
-        this.customerId = portfolio.getCustomer() != null ? portfolio.getCustomer().getCustomerId() : null;
+        this.customerId = portfolio.getCustomerId();
         this.portfolioName = portfolio.getPortfolioName();
     }
 
