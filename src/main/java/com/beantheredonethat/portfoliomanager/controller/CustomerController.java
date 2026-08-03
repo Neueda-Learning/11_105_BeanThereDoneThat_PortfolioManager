@@ -3,9 +3,11 @@ package com.beantheredonethat.portfoliomanager.controller;
 import com.beantheredonethat.portfoliomanager.dto.CustomerResponse;
 import com.beantheredonethat.portfoliomanager.dto.LoginRequest;
 import com.beantheredonethat.portfoliomanager.dto.LoginResponse;
+import com.beantheredonethat.portfoliomanager.dto.PortfolioResponse;
 import com.beantheredonethat.portfoliomanager.dto.RegisterRequest;
 import com.beantheredonethat.portfoliomanager.dto.UpdateCustomerRequest;
 import com.beantheredonethat.portfoliomanager.service.CustomerService;
+import com.beantheredonethat.portfoliomanager.service.PortfolioService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -19,9 +21,11 @@ import java.util.List;
 public class CustomerController {
 
     private final CustomerService customerService;
+    private final PortfolioService portfolioService;
 
-    public CustomerController(CustomerService customerService) {
+    public CustomerController(CustomerService customerService, PortfolioService portfolioService) {
         this.customerService = customerService;
+        this.portfolioService = portfolioService;
     }
 
     @Operation(summary = "Register a new customer")
@@ -64,5 +68,12 @@ public class CustomerController {
     public ResponseEntity<Void> deleteCustomer(@PathVariable Integer id) {
         customerService.deleteCustomer(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "Get all portfolios for a customer")
+    @GetMapping("/{customerId}/portfolios")
+    public ResponseEntity<List<PortfolioResponse>> getPortfoliosByCustomer(
+            @PathVariable Integer customerId) {
+        return ResponseEntity.ok(portfolioService.getPortfoliosByCustomer(customerId));
     }
 }
