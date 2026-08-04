@@ -1,6 +1,7 @@
 package com.beantheredonethat.portfoliomanager.exception;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
 
@@ -48,4 +49,5 @@ public class GlobalExceptionHandler {
             InvalidCredentialsException ex) {
         return Map.of("error", ex.getMessage());
     }
+
 }
