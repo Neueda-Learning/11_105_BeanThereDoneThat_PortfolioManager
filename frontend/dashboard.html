@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Dashboard - Portfolio Manager</title>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" crossorigin="anonymous"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="css/style.css"/>
+  <link rel="stylesheet" href="css/dashboard.css"/>
+</head>
+<body>
+  <div class="pm-overlay" id="overlay"></div>
+  <nav class="pm-navbar">
+    <a class="pm-navbar__brand" href="dashboard.html">
+      <div class="pm-navbar__brand-icon"><i class="bi bi-graph-up-arrow"></i></div>
+      <span class="pm-navbar__brand-name">Portfolio Manager</span>
+    </a>
+    <div class="pm-navbar__search">
+      <i class="bi bi-search"></i>
+      <input type="text" placeholder="Search..." aria-label="Search"/>
+    </div>
+    <div class="pm-navbar__actions">
+      <button class="pm-navbar__icon-btn" title="Notifications"><i class="bi bi-bell"></i><span class="pm-navbar__badge"></span></button>
+      <button class="pm-navbar__icon-btn" title="Settings"><i class="bi bi-gear"></i></button>
+      <div class="pm-navbar__divider"></div>
+      <div class="dropdown">
+        <button class="pm-navbar__avatar" data-bs-toggle="dropdown" data-initials aria-expanded="false">JD</button>
+        <ul class="dropdown-menu dropdown-menu-end" style="border-radius:var(--r-lg);border:1px solid var(--gray-300);min-width:190px;padding:4px;">
+          <li><div class="px-3 py-2"><div style="font-weight:700;font-size:.82rem;" data-user-name>Jane Doe</div><div style="font-size:.75rem;color:var(--gray-500);" data-user-email>jane@example.com</div></div></li>
+          <li><hr class="dropdown-divider" style="border-color:var(--gray-200);"/></li>
+          <li><a class="dropdown-item" href="profile.html" style="font-size:.82rem;"><i class="bi bi-person me-2"></i>Profile</a></li>
+          <li><hr class="dropdown-divider" style="border-color:var(--gray-200);"/></li>
+          <li><button class="dropdown-item text-danger" style="font-size:.82rem;" data-logout><i class="bi bi-box-arrow-right me-2"></i>Sign Out</button></li>
+        </ul>
+      </div>
+      <button class="pm-navbar__hamburger" id="hamburger" aria-label="Menu"><i class="bi bi-list"></i></button>
+    </div>
+  </nav>
+  <aside class="pm-sidebar" id="sidebar">
+    <div class="pm-sidebar__section">Menu</div>
+    <ul class="pm-sidebar__nav">
+      <li><a href="dashboard.html" class="active" aria-current="page"><i class="bi bi-grid-1x2-fill"></i><span>Dashboard</span></a></li>
+      <li><a href="portfolios.html"><i class="bi bi-folder2-open"></i><span>Portfolios</span></a></li>
+      <li><a href="investments.html"><i class="bi bi-bar-chart-fill"></i><span>Investments</span></a></li>
+      <li><a href="transactions.html"><i class="bi bi-arrow-left-right"></i><span>Transactions</span></a></li>
+      <li><a href="analytics.html"><i class="bi bi-pie-chart-fill"></i><span>Analytics</span></a></li>
+      <li><a href="profile.html"><i class="bi bi-person-fill"></i><span>Profile</span></a></li>
+    </ul>
+    <div class="pm-sidebar__divider"></div>
+    <div class="pm-sidebar__section">Account</div>
+    <ul class="pm-sidebar__nav">
+      <li><a href="#" data-logout><i class="bi bi-box-arrow-right"></i><span>Sign Out</span></a></li>
+    </ul>
+    <div class="pm-sidebar__user">
+      <div class="pm-sidebar__user-av" data-initials>JD</div>
+      <div>
+        <div class="pm-sidebar__user-name" data-user-name>Jane Doe</div>
+        <div class="pm-sidebar__user-role">Investor</div>
+      </div>
+      <button class="pm-sidebar__user-exit" data-logout title="Sign out"><i class="bi bi-box-arrow-right"></i></button>
+    </div>
+  </aside>
+  <main class="pm-main" id="main">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px;">
+      <div>
+        <div style="font-size:.75rem;color:var(--gray-500);margin-bottom:2px;">Dashboard</div>
+        <h1 class="pm-page-title" id="dashboardGreeting">Good morning</h1>
+        <p class="pm-page-sub">Here is your investment overview for today.</p>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <a href="add-investment.html" class="pm-btn pm-btn--primary"><i class="bi bi-plus-lg"></i> Add Investment</a>
+        <a href="portfolios.html" class="pm-btn pm-btn--outline"><i class="bi bi-folder2-open"></i> Portfolios</a>
+      </div>
+    </div>
+
+    <!-- Stat Cards -->
+    <div class="row g-3 mb-4">
+      <div class="col-6 col-xl">
+        <div class="pm-stat">
+          <div class="pm-stat__icon pm-stat__icon--amber"><i class="bi bi-folder2-open"></i></div>
+          <div class="pm-stat__lbl">Total Portfolios</div>
+          <div class="pm-stat__val" id="statPortfolios">0</div>
+          <div class="pm-stat__dlt delta-flat"><i class="bi bi-dash"></i> Managed</div>
+        </div>
+      </div>
+      <div class="col-6 col-xl">
+        <div class="pm-stat">
+          <div class="pm-stat__icon pm-stat__icon--pink"><i class="bi bi-collection-fill"></i></div>
+          <div class="pm-stat__lbl">Total Investments</div>
+          <div class="pm-stat__val" id="statCount">0</div>
+          <div class="pm-stat__dlt delta-flat"><i class="bi bi-dash"></i> Active holdings</div>
+        </div>
+      </div>
+      <div class="col-6 col-xl">
+        <div class="pm-stat">
+          <div class="pm-stat__icon pm-stat__icon--blue"><i class="bi bi-currency-rupee"></i></div>
+          <div class="pm-stat__lbl">Total Invested</div>
+          <div class="pm-stat__val" id="statInvested">₹0.00</div>
+          <div class="pm-stat__dlt delta-flat"><i class="bi bi-dash"></i> Cost basis</div>
+        </div>
+      </div>
+      <div class="col-6 col-xl">
+        <div class="pm-stat">
+          <div class="pm-stat__icon pm-stat__icon--blue"><i class="bi bi-currency-rupee"></i></div>
+          <div class="pm-stat__lbl">Current Value</div>
+          <div class="pm-stat__val" id="statValue">₹0.00</div>
+          <div class="pm-stat__dlt delta-flat"><i class="bi bi-dash"></i> Portfolio value</div>
+        </div>
+      </div>
+      <div class="col-6 col-xl">
+        <div class="pm-stat">
+          <div class="pm-stat__icon pm-stat__icon--green"><i class="bi bi-graph-up-arrow"></i></div>
+          <div class="pm-stat__lbl">Total P&amp;L</div>
+          <div class="pm-stat__val" id="statPL">₹0.00</div>
+          <div class="pm-stat__dlt" id="statPLDelta"><i class="bi bi-dash"></i> 0.00% overall</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="row g-3 mb-4">
+      <div class="col-12 col-xl-8">
+        <div class="pm-card">
+          <div class="pm-card__hd">
+            <span class="pm-card__title"><i class="bi bi-activity"></i> Portfolio Growth</span>
+            <div style="display:flex;gap:4px;">
+              <button class="pm-btn pm-btn--outline pm-btn--sm active-period" style="border-radius:4px;">1M</button>
+              <button class="pm-btn pm-btn--outline pm-btn--sm" style="border-radius:4px;">3M</button>
+              <button class="pm-btn pm-btn--outline pm-btn--sm" style="border-radius:4px;">1Y</button>
+            </div>
+          </div>
+          <div class="pm-card__bd">
+            <div style="height:240px;display:flex;align-items:center;justify-content:center;background:var(--gray-50);border-radius:var(--r-sm);border:1px dashed var(--gray-300);">
+              <canvas id="growthChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-xl-4">
+        <div class="pm-card h-100">
+          <div class="pm-card__hd"><span class="pm-card__title"><i class="bi bi-pie-chart-fill"></i> Allocation</span></div>
+          <div class="pm-card__bd">
+            <div style="height:160px;display:flex;align-items:center;justify-content:center;background:var(--gray-50);border-radius:var(--r-sm);border:1px dashed var(--gray-300);margin-bottom:14px;">
+              <canvas id="allocChart"></canvas>
+            </div>
+            <ul style="list-style:none;padding:0;display:flex;flex-direction:column;gap:6px;">
+              <li style="display:flex;align-items:center;gap:7px;font-size:.79rem;"><span style="width:9px;height:9px;border-radius:50%;background:var(--pink-300);flex-shrink:0;"></span><span style="flex:1;color:var(--gray-600);">Stocks</span><span style="font-weight:700;">61%</span></li>
+              <li style="display:flex;align-items:center;gap:7px;font-size:.79rem;"><span style="width:9px;height:9px;border-radius:50%;background:var(--info);flex-shrink:0;"></span><span style="flex:1;color:var(--gray-600);">Mutual Funds</span><span style="font-weight:700;">15%</span></li>
+              <li style="display:flex;align-items:center;gap:7px;font-size:.79rem;"><span style="width:9px;height:9px;border-radius:50%;background:var(--warning);flex-shrink:0;"></span><span style="flex:1;color:var(--gray-600);">Cryptocurrency</span><span style="font-weight:700;">24%</span></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="pm-card mb-4">
+      <div class="pm-card__hd"><span class="pm-card__title"><i class="bi bi-lightning-fill"></i> Quick Actions</span></div>
+      <div class="pm-card__bd">
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;">
+          <a href="add-investment.html" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:var(--white);border:1px solid var(--gray-300);border-radius:var(--r-md);cursor:pointer;transition:var(--tr);text-decoration:none;" onmouseover="this.style.background='var(--pink-100)';this.style.borderColor='var(--pink-200)'" onmouseout="this.style.background='var(--white)';this.style.borderColor='var(--gray-300)'">
+            <div style="width:36px;height:36px;border-radius:6px;background:var(--pink-100);display:flex;align-items:center;justify-content:center;font-size:1rem;color:var(--pink-txt);"><i class="bi bi-plus-circle-fill"></i></div>
+            <span style="font-size:.72rem;font-weight:600;color:var(--gray-700);text-align:center;">Add Investment</span>
+          </a>
+          <a href="transactions.html" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:var(--white);border:1px solid var(--gray-300);border-radius:var(--r-md);cursor:pointer;transition:var(--tr);text-decoration:none;" onmouseover="this.style.background='var(--pink-100)';this.style.borderColor='var(--pink-200)'" onmouseout="this.style.background='var(--white)';this.style.borderColor='var(--gray-300)'">
+            <div style="width:36px;height:36px;border-radius:6px;background:var(--info-bg);display:flex;align-items:center;justify-content:center;font-size:1rem;color:var(--info);"><i class="bi bi-arrow-left-right"></i></div>
+            <span style="font-size:.72rem;font-weight:600;color:var(--gray-700);text-align:center;">Transactions</span>
+          </a>
+          <a href="analytics.html" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:var(--white);border:1px solid var(--gray-300);border-radius:var(--r-md);cursor:pointer;transition:var(--tr);text-decoration:none;" onmouseover="this.style.background='var(--pink-100)';this.style.borderColor='var(--pink-200)'" onmouseout="this.style.background='var(--white)';this.style.borderColor='var(--gray-300)'">
+            <div style="width:36px;height:36px;border-radius:6px;background:var(--success-bg);display:flex;align-items:center;justify-content:center;font-size:1rem;color:var(--success);"><i class="bi bi-pie-chart-fill"></i></div>
+            <span style="font-size:.72rem;font-weight:600;color:var(--gray-700);text-align:center;">Analytics</span>
+          </a>
+          <a href="portfolios.html" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:var(--white);border:1px solid var(--gray-300);border-radius:var(--r-md);cursor:pointer;transition:var(--tr);text-decoration:none;" onmouseover="this.style.background='var(--pink-100)';this.style.borderColor='var(--pink-200)'" onmouseout="this.style.background='var(--white)';this.style.borderColor='var(--gray-300)'">
+            <div style="width:36px;height:36px;border-radius:6px;background:var(--warning-bg);display:flex;align-items:center;justify-content:center;font-size:1rem;color:var(--warning);"><i class="bi bi-folder2-open"></i></div>
+            <span style="font-size:.72rem;font-weight:600;color:var(--gray-700);text-align:center;">Portfolios</span>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Transactions -->
+    <div class="row g-3" id="transactions-section">
+      <div class="col-12 col-xl-7">
+        <div class="pm-card">
+          <div class="pm-card__hd">
+            <span class="pm-card__title"><i class="bi bi-arrow-left-right"></i> Recent Transactions</span>
+            <a href="transactions.html" style="font-size:.78rem;color:var(--pink-txt);">View all</a>
+          </div>
+          <div class="pm-card__bd--bare">
+            <div class="pm-tbl-wrap">
+              <table class="pm-tbl">
+                <thead><tr><th>Asset</th><th>Type</th><th>Qty</th><th>Amount</th><th>Date</th></tr></thead>
+                <tbody id="recentTransactionsBody">
+                  <tr><td colspan="5" style="padding:24px;text-align:center;color:var(--gray-500);"><span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Loading transactions...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-xl-5" id="portfolio-section">
+        <div class="pm-card">
+          <div class="pm-card__hd">
+            <span class="pm-card__title"><i class="bi bi-folder2-open"></i> Portfolio Summary</span>
+            <a href="portfolios.html" style="font-size:.78rem;color:var(--pink-txt);">Manage</a>
+          </div>
+          <div class="pm-card__bd" id="investmentSummaryList">
+            <div style="padding:8px 0;color:var(--gray-500);"><span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Loading investment summary...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+  <div class="pm-toast-stack" id="toasts"></div>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <script src="js/dashboard.js"></script>
+
+  <script>
+    var sb = document.getElementById('sidebar'), ov = document.getElementById('overlay');
+    document.getElementById('hamburger').addEventListener('click', function(){ sb.classList.add('open'); ov.classList.add('active'); });
+    ov.addEventListener('click', function(){ sb.classList.remove('open'); ov.classList.remove('active'); });
+  </script>
+</body>
+</html>
