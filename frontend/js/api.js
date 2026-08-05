@@ -6,6 +6,19 @@
 
 const API_BASE = 'http://localhost:8080';
 
+function buildCustomerScopedHeaders() {
+  const headers = { 'Content-Type': 'application/json' };
+  const customerId = typeof window.getCustomerId === 'function'
+    ? window.getCustomerId()
+    : null;
+
+  if (customerId) {
+    headers['X-Customer-Id'] = String(customerId);
+  }
+
+  return headers;
+}
+
 async function parseApiResponse(response) {
   let payload = null;
 
@@ -76,7 +89,7 @@ const PortfolioAPI = {
     try {
       const response = await fetch(`${API_BASE}/api/portfolios`, {
         method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
+        headers: buildCustomerScopedHeaders(),
       });
       const payload = await parseApiResponse(response);
       console.log('[API] GET /api/portfolios response:', payload);
@@ -89,7 +102,7 @@ const PortfolioAPI = {
     try {
       const response = await fetch(`${API_BASE}/api/customers/${customerId}/portfolios`, {
         method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
+        headers: buildCustomerScopedHeaders(),
       });
       const payload = await parseApiResponse(response);
       console.log('[API] GET /api/customers/{customerId}/portfolios response:', payload);
@@ -102,7 +115,7 @@ const PortfolioAPI = {
     try {
       const response = await fetch(`${API_BASE}/api/portfolios/${id}`, {
         method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
+        headers: buildCustomerScopedHeaders(),
       });
       const payload = await parseApiResponse(response);
       console.log(`[API] GET /api/portfolios/${id} response:`, payload);
@@ -115,7 +128,7 @@ const PortfolioAPI = {
     try {
       const response = await fetch(`${API_BASE}/api/portfolios`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: buildCustomerScopedHeaders(),
         body: JSON.stringify(data),
       });
       const payload = await parseApiResponse(response);
@@ -129,7 +142,7 @@ const PortfolioAPI = {
     try {
       const response = await fetch(`${API_BASE}/api/portfolios/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: buildCustomerScopedHeaders(),
         body: JSON.stringify(data),
       });
       const payload = await parseApiResponse(response);
@@ -143,7 +156,7 @@ const PortfolioAPI = {
     try {
       const response = await fetch(`${API_BASE}/api/portfolios/${id}`, {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
+        headers: buildCustomerScopedHeaders(),
       });
       const payload = await parseApiResponse(response);
       console.log(`[API] DELETE /api/portfolios/${id} response:`, payload);

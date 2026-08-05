@@ -27,6 +27,8 @@ CREATE TABLE Investment (
     portfolio_id INT NOT NULL,
     symbol VARCHAR(20) NOT NULL,
     company_name VARCHAR(100),
+    exchange VARCHAR(50),
+    currency VARCHAR(10),
     asset_type VARCHAR(50),
     custom_asset_type VARCHAR(100),
     quantity DECIMAL(15,2) NOT NULL,
@@ -60,4 +62,8 @@ CREATE TABLE Investment_Transaction (
         ON DELETE CASCADE
         ON UPDATE CASCADE
 );
+
+#ALTER TABLE Investment ADD COLUMN Exchange VARCHAR(50);
+
+#ALTER TABLE Investment ADD COLUMN Currency VARCHAR(10);
 

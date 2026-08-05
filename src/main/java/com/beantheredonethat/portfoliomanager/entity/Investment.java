@@ -9,6 +9,8 @@ public class Investment {
     private Integer portfolioId;
     private String symbol;
     private String companyName;
+    private String exchange;
+    private String currency;
     private String assetType;
     private String customAssetType;
     private BigDecimal quantity;
@@ -22,11 +24,13 @@ public class Investment {
     public Investment() {
     }
 
-    public Investment(Integer investmentId, Integer portfolioId, String symbol, String companyName, String assetType, String customAssetType, BigDecimal quantity, BigDecimal investedAmount, BigDecimal purchasePrice, BigDecimal currentPrice, BigDecimal currentValue, BigDecimal profitLoss, LocalDate purchaseDate) {
+    public Investment(Integer investmentId, Integer portfolioId, String symbol, String companyName, String exchange, String currency, String assetType, String customAssetType, BigDecimal quantity, BigDecimal investedAmount, BigDecimal purchasePrice, BigDecimal currentPrice, BigDecimal currentValue, BigDecimal profitLoss, LocalDate purchaseDate) {
         this.investmentId = investmentId;
         this.portfolioId = portfolioId;
         this.symbol = symbol;
         this.companyName = companyName;
+        this.exchange = exchange;
+        this.currency = currency;
         this.assetType = assetType;
         this.customAssetType = customAssetType;
         this.quantity = quantity;
@@ -38,8 +42,8 @@ public class Investment {
         this.purchaseDate = purchaseDate;
     }
 
-    public Investment(Integer portfolioId, String symbol, String companyName, String assetType, String customAssetType, BigDecimal quantity, BigDecimal investedAmount, BigDecimal purchasePrice, BigDecimal currentPrice, BigDecimal currentValue, BigDecimal profitLoss, LocalDate purchaseDate) {
-        this(null, portfolioId, symbol, companyName, assetType, customAssetType, quantity, investedAmount, purchasePrice, currentPrice, currentValue, profitLoss, purchaseDate);
+    public Investment(Integer portfolioId, String symbol, String companyName, String exchange, String currency, String assetType, String customAssetType, BigDecimal quantity, BigDecimal investedAmount, BigDecimal purchasePrice, BigDecimal currentPrice, BigDecimal currentValue, BigDecimal profitLoss, LocalDate purchaseDate) {
+        this(null, portfolioId, symbol, companyName, exchange, currency, assetType, customAssetType, quantity, investedAmount, purchasePrice, currentPrice, currentValue, profitLoss, purchaseDate);
     }
 
     public Integer getInvestmentId() {
@@ -72,6 +76,22 @@ public class Investment {
 
     public void setCompanyName(String companyName) {
         this.companyName = companyName;
+    }
+
+    public String getExchange() {
+        return exchange;
+    }
+
+    public void setExchange(String exchange) {
+        this.exchange = exchange;
+    }
+
+    public String getCurrency() {
+        return currency;
+    }
+
+    public void setCurrency(String currency) {
+        this.currency = currency;
     }
 
     public String getAssetType() {

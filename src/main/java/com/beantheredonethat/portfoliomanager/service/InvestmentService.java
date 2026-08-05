@@ -2,6 +2,7 @@ package com.beantheredonethat.portfoliomanager.service;
 
 import com.beantheredonethat.portfoliomanager.dto.CreateInvestmentRequest;
 import com.beantheredonethat.portfoliomanager.dto.InvestmentResponse;
+import com.beantheredonethat.portfoliomanager.dto.SymbolResolutionResult;
 import com.beantheredonethat.portfoliomanager.dto.UpdateInvestmentRequest;
 import com.beantheredonethat.portfoliomanager.entity.Investment;
 import com.beantheredonethat.portfoliomanager.exception.InvestmentNotFoundException;
@@ -21,14 +22,21 @@ import java.util.stream.Collectors;
 @Service
 public class InvestmentService {
 
+    private static final Logger logger = LoggerFactory.getLogger(InvestmentService.class);
+
     private final InvestmentRepository investmentRepository;
     private final PortfolioRepository portfolioRepository;
     private final YahooFinanceService yahooFinanceService;
+    private final SymbolResolverService symbolResolverService;
 
-    public InvestmentService(InvestmentRepository investmentRepository, PortfolioRepository portfolioRepository, YahooFinanceService yahooFinanceService) {
+    public InvestmentService(InvestmentRepository investmentRepository,
+                             PortfolioRepository portfolioRepository,
+                             YahooFinanceService yahooFinanceService,
+                             SymbolResolverService symbolResolverService) {
         this.investmentRepository = investmentRepository;
         this.portfolioRepository = portfolioRepository;
         this.yahooFinanceService = yahooFinanceService;
+        this.symbolResolverService = symbolResolverService;
     }
 
     public InvestmentResponse createInvestment(CreateInvestmentRequest request) {
@@ -37,29 +45,45 @@ public class InvestmentService {
                 .orElseThrow(() -> new PortfolioNotFoundException(
                         "Portfolio not found with ID: " + request.getPortfolioId()));
 
+        String originalSymbol = request.getSymbol() == null ? null : request.getSymbol().trim().toUpperCase();
+        SymbolResolutionResult resolution = symbolResolverService.resolveSymbol(originalSymbol, request.getAssetType());
+
+        String resolvedSymbol = resolution.getResolvedSymbol() != null
+                ? resolution.getResolvedSymbol()
+                : originalSymbol;
+        String resolvedExchange = resolution.getExchange();
+        String resolvedCurrency = resolution.getCurrency();
+        String resolvedName = resolution.getAssetName();
+
         // Calculate investedAmount
         BigDecimal investedAmount = request.getQuantity().multiply(request.getPurchasePrice()).setScale(2, RoundingMode.HALF_UP);
 
-        // Fetch live price
-        BigDecimal currentPrice = null;
+        // Keep manual current price as fallback; use market price when available.
+        BigDecimal currentPrice = request.getCurrentPrice();
         BigDecimal currentValue = null;
         BigDecimal profitLoss = null;
         try {
-            currentPrice = yahooFinanceService.getCurrentPrice(request.getSymbol());
-            if (currentPrice != null) {
-                currentValue = currentPrice.multiply(request.getQuantity()).setScale(2, RoundingMode.HALF_UP);
-                profitLoss = currentValue.subtract(investedAmount).setScale(2, RoundingMode.HALF_UP);
+            if (resolvedSymbol != null && !resolvedSymbol.isBlank()) {
+                BigDecimal marketPrice = yahooFinanceService.getCurrentPrice(resolvedSymbol);
+                if (marketPrice != null) {
+                    currentPrice = marketPrice;
+                }
             }
-        } catch (YahooFinanceException yfe) {
-            Logger logger = LoggerFactory.getLogger(InvestmentService.class);
-            logger.warn("Failed to fetch market price for symbol {}: {}. Saving investment without market values.", request.getSymbol(), yfe.getMessage());
-            // proceed without market values
+        } catch (Exception ex) {
+            logger.warn("Failed to fetch market price for symbol {}: {}. Falling back to manual price.", resolvedSymbol, ex.getMessage());
+        }
+
+        if (currentPrice != null) {
+            currentValue = currentPrice.multiply(request.getQuantity()).setScale(2, RoundingMode.HALF_UP);
+            profitLoss = currentValue.subtract(investedAmount).setScale(2, RoundingMode.HALF_UP);
         }
 
         Investment investment = new Investment();
         investment.setPortfolioId(request.getPortfolioId());
-        investment.setSymbol(request.getSymbol());
-        investment.setCompanyName(request.getCompanyName());
+        investment.setSymbol(resolvedSymbol);
+        investment.setCompanyName((resolvedName != null && !resolvedName.isBlank()) ? resolvedName : request.getCompanyName());
+        investment.setExchange(resolvedExchange);
+        investment.setCurrency(resolvedCurrency);
         investment.setAssetType(request.getAssetType());
         investment.setCustomAssetType(request.getCustomAssetType());
         investment.setQuantity(request.getQuantity());
@@ -90,10 +114,8 @@ public class InvestmentService {
             try {
                 refreshMarketValues(inv);
             } catch (YahooFinanceException yfe) {
-                Logger logger = LoggerFactory.getLogger(InvestmentService.class);
                 logger.warn("Failed to refresh market values for investment {}: {}", inv.getInvestmentId(), yfe.getMessage());
             } catch (Exception e) {
-                Logger logger = LoggerFactory.getLogger(InvestmentService.class);
                 logger.warn("Unexpected error refreshing market values for investment {}: {}", inv.getInvestmentId(), e.getMessage());
             }
         }
@@ -109,10 +131,8 @@ public class InvestmentService {
             try {
                 refreshMarketValues(inv);
             } catch (YahooFinanceException yfe) {
-                Logger logger = LoggerFactory.getLogger(InvestmentService.class);
                 logger.warn("Failed to refresh market values for investment {}: {}", inv.getInvestmentId(), yfe.getMessage());
             } catch (Exception e) {
-                Logger logger = LoggerFactory.getLogger(InvestmentService.class);
                 logger.warn("Unexpected error refreshing market values for investment {}: {}", inv.getInvestmentId(), e.getMessage());
             }
         }
@@ -148,7 +168,6 @@ public class InvestmentService {
         try {
             refreshMarketValues(investment);
         } catch (YahooFinanceException yfe) {
-            Logger logger = LoggerFactory.getLogger(InvestmentService.class);
             logger.warn("Failed to refresh market values for investment {}: {}", investment.getInvestmentId(), yfe.getMessage());
         }
 
@@ -190,9 +209,10 @@ public class InvestmentService {
             investment.setCurrentValue(currentValue);
             investment.setProfitLoss(profitLoss);
         } catch (YahooFinanceException yfe) {
-            Logger logger = LoggerFactory.getLogger(InvestmentService.class);
             logger.warn("Unable to refresh market values for symbol {}: {}", investment.getSymbol(), yfe.getMessage());
             // Leave existing market values as-is (may be null)
+        } catch (IllegalArgumentException iae) {
+            logger.warn("Skipping refresh for unresolved symbol {}: {}", investment.getSymbol(), iae.getMessage());
         }
     }
 
