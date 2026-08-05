@@ -18,16 +18,34 @@ public class UpdateInvestmentRequest {
     private String assetType;
 
     private String customAssetType;
+    
+    private String schemeCode;
 
     public UpdateInvestmentRequest() {
     }
 
-    public UpdateInvestmentRequest(BigDecimal quantity, BigDecimal purchasePrice, LocalDate purchaseDate, String assetType, String customAssetType) {
+    public UpdateInvestmentRequest(
+            BigDecimal quantity,
+            BigDecimal purchasePrice,
+            LocalDate purchaseDate,
+            String assetType,
+            String customAssetType,
+            String schemeCode) {
+
         this.quantity = quantity;
         this.purchasePrice = purchasePrice;
         this.purchaseDate = purchaseDate;
         this.assetType = assetType;
         this.customAssetType = customAssetType;
+        this.schemeCode = schemeCode;
+    }
+
+    public String getSchemeCode() {
+        return schemeCode;
+    }
+
+    public void setSchemeCode(String schemeCode) {
+        this.schemeCode = schemeCode;
     }
 
     public BigDecimal getQuantity() {
