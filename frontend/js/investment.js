@@ -35,7 +35,7 @@ async function loadInvestments() {
   const tbody = getInvestmentsTbody();
   if (!tbody) return;
 
-  tbody.innerHTML = `<tr><td colspan="10" style="padding:24px;text-align:center;color:var(--gray-500);"><span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Loading investments...</td></tr>`;
+  tbody.innerHTML = `<tr><td colspan="12" style="padding:24px;text-align:center;color:var(--gray-500);"><span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Loading investments...</td></tr>`;
 
   try {
     const response = await InvestmentAPI.getAll();
@@ -90,7 +90,7 @@ function renderInvestmentsTable(list) {
   if (!tbody) return;
 
   if (!list.length) {
-    tbody.innerHTML = '<tr><td colspan="10" style="padding:24px;text-align:center;color:var(--gray-500);">No investments found.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12" style="padding:24px;text-align:center;color:var(--gray-500);">No investments found.</td></tr>';
     return;
   }
 
@@ -105,6 +105,8 @@ function renderInvestmentsTable(list) {
         <td style="color:var(--gray-500);">${escapeHtml(String(id || '0'))}</td>
         <td style="font-weight:600;">${escapeHtml(investment.companyName || 'N/A')}</td>
         <td>${escapeHtml(investment.symbol || 'N/A')}</td>
+        <td>${escapeHtml(investment.exchange || 'N/A')}</td>
+        <td>${escapeHtml(investment.currency || 'N/A')}</td>
         <td>${assetTypeBadge(investment.assetType || investment.customAssetType || 'N/A')}</td>
         <td>${formatNumber(investment.quantity)}</td>
         <td>${formatINR(investment.purchasePrice)}</td>
@@ -240,6 +242,7 @@ function wireAddInvestmentPageForm() {
       quantity: toNumber(document.getElementById('quantity')?.value),
       purchasePrice: toNumber(document.getElementById('purchasePrice')?.value),
       purchaseDate: String(document.getElementById('purchaseDate')?.value || '').trim(),
+      currentPrice: toNullablePositiveNumber(document.getElementById('currentPrice')?.value),
     };
 
     if (!isValidCreatePayload(payload)) {
@@ -454,6 +457,15 @@ function sumBy(list, key) {
 function toNumber(value) {
   const num = Number(value);
   return Number.isFinite(num) ? num : 0;
+}
+
+function toNullablePositiveNumber(value) {
+  if (value === undefined || value === null || String(value).trim() === '') {
+    return null;
+  }
+
+  const num = Number(value);
+  return Number.isFinite(num) && num > 0 ? num : null;
 }
 
 function formatINR(value) {

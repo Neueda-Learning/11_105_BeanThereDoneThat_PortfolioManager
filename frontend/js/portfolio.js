@@ -79,12 +79,11 @@ function wireCreatePortfolioForm() {
     hideModalAlert('createModalAlert');
 
     const payload = {
-      customerId: toNumber(document.getElementById('createCustomerId')?.value),
       portfolioName: String(document.getElementById('createPortfolioName')?.value || '').trim(),
     };
 
-    if (!payload.customerId || !payload.portfolioName) {
-      showModalAlert('createModalAlert', 'Customer ID and Portfolio Name are required.', 'danger');
+    if (!payload.portfolioName) {
+      showModalAlert('createModalAlert', 'Portfolio Name is required.', 'danger');
       return;
     }
 

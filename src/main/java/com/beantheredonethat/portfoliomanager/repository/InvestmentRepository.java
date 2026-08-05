@@ -28,6 +28,8 @@ public class InvestmentRepository {
         i.setPortfolioId(rs.getInt("portfolio_id"));
         i.setSymbol(rs.getString("symbol"));
         i.setCompanyName(rs.getString("company_name"));
+        i.setExchange(rs.getString("exchange"));
+        i.setCurrency(rs.getString("currency"));
         i.setAssetType(rs.getString("asset_type"));
         i.setCustomAssetType(rs.getString("custom_asset_type"));
         i.setQuantity(rs.getBigDecimal("quantity"));
@@ -42,25 +44,27 @@ public class InvestmentRepository {
     };
 
     public Investment insertInvestment(Investment investment) {
-        String sql = "INSERT INTO Investment (portfolio_id, symbol, company_name, asset_type, custom_asset_type, quantity, invested_amount, purchase_price, current_price, current_value, profit_loss, purchase_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO Investment (portfolio_id, symbol, company_name, exchange, currency, asset_type, custom_asset_type, quantity, invested_amount, purchase_price, current_price, current_value, profit_loss, purchase_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(con -> {
             PreparedStatement ps = con.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
             ps.setInt(1, investment.getPortfolioId());
             ps.setString(2, investment.getSymbol());
             ps.setString(3, investment.getCompanyName());
-            ps.setString(4, investment.getAssetType());
-            ps.setString(5, investment.getCustomAssetType());
-            ps.setBigDecimal(6, investment.getQuantity());
-            ps.setBigDecimal(7, investment.getInvestedAmount());
-            ps.setBigDecimal(8, investment.getPurchasePrice());
-            ps.setBigDecimal(9, investment.getCurrentPrice());
-            ps.setBigDecimal(10, investment.getCurrentValue());
-            ps.setBigDecimal(11, investment.getProfitLoss());
+            ps.setString(4, investment.getExchange());
+            ps.setString(5, investment.getCurrency());
+            ps.setString(6, investment.getAssetType());
+            ps.setString(7, investment.getCustomAssetType());
+            ps.setBigDecimal(8, investment.getQuantity());
+            ps.setBigDecimal(9, investment.getInvestedAmount());
+            ps.setBigDecimal(10, investment.getPurchasePrice());
+            ps.setBigDecimal(11, investment.getCurrentPrice());
+            ps.setBigDecimal(12, investment.getCurrentValue());
+            ps.setBigDecimal(13, investment.getProfitLoss());
             if (investment.getPurchaseDate() != null) {
-                ps.setDate(12, Date.valueOf(investment.getPurchaseDate()));
+                ps.setDate(14, Date.valueOf(investment.getPurchaseDate()));
             } else {
-                ps.setDate(12, null);
+                ps.setDate(14, null);
             }
             return ps;
         }, keyHolder);

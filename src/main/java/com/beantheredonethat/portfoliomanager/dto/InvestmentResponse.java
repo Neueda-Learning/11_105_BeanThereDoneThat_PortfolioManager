@@ -11,6 +11,8 @@ public class InvestmentResponse {
     private Integer portfolioId;
     private String symbol;
     private String companyName;
+    private String exchange;
+    private String currency;
     private String assetType;
     private String customAssetType;
     private BigDecimal quantity;
@@ -24,11 +26,13 @@ public class InvestmentResponse {
     public InvestmentResponse() {
     }
 
-    public InvestmentResponse(Integer investmentId, Integer portfolioId, String symbol, String companyName, String assetType, String customAssetType, BigDecimal quantity, BigDecimal investedAmount, BigDecimal purchasePrice, BigDecimal currentPrice, BigDecimal currentValue, BigDecimal profitLoss, LocalDate purchaseDate) {
+    public InvestmentResponse(Integer investmentId, Integer portfolioId, String symbol, String companyName, String exchange, String currency, String assetType, String customAssetType, BigDecimal quantity, BigDecimal investedAmount, BigDecimal purchasePrice, BigDecimal currentPrice, BigDecimal currentValue, BigDecimal profitLoss, LocalDate purchaseDate) {
         this.investmentId = investmentId;
         this.portfolioId = portfolioId;
         this.symbol = symbol;
         this.companyName = companyName;
+        this.exchange = exchange;
+        this.currency = currency;
         this.assetType = assetType;
         this.customAssetType = customAssetType;
         this.quantity = quantity;
@@ -45,6 +49,8 @@ public class InvestmentResponse {
         this.portfolioId = investment.getPortfolioId();
         this.symbol = investment.getSymbol();
         this.companyName = investment.getCompanyName();
+        this.exchange = investment.getExchange();
+        this.currency = investment.getCurrency();
         this.assetType = investment.getAssetType();
         this.customAssetType = investment.getCustomAssetType();
         this.quantity = investment.getQuantity();
@@ -86,6 +92,22 @@ public class InvestmentResponse {
 
     public void setCompanyName(String companyName) {
         this.companyName = companyName;
+    }
+
+    public String getExchange() {
+        return exchange;
+    }
+
+    public void setExchange(String exchange) {
+        this.exchange = exchange;
+    }
+
+    public String getCurrency() {
+        return currency;
+    }
+
+    public void setCurrency(String currency) {
+        this.currency = currency;
     }
 
     public String getAssetType() {

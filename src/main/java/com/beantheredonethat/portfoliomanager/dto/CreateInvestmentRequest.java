@@ -3,7 +3,6 @@ package com.beantheredonethat.portfoliomanager.dto;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
@@ -32,10 +31,13 @@ public class CreateInvestmentRequest {
     @NotNull(message = "Purchase date is required")
     private LocalDate purchaseDate;
 
+    @DecimalMin(value = "0.0", inclusive = false, message = "Current price must be positive")
+    private BigDecimal currentPrice;
+
     public CreateInvestmentRequest() {
     }
 
-    public CreateInvestmentRequest(Integer portfolioId, String symbol, String companyName, String assetType, String customAssetType, BigDecimal quantity, BigDecimal purchasePrice, LocalDate purchaseDate) {
+    public CreateInvestmentRequest(Integer portfolioId, String symbol, String companyName, String assetType, String customAssetType, BigDecimal quantity, BigDecimal purchasePrice, LocalDate purchaseDate, BigDecimal currentPrice) {
         this.portfolioId = portfolioId;
         this.symbol = symbol;
         this.companyName = companyName;
@@ -44,6 +46,7 @@ public class CreateInvestmentRequest {
         this.quantity = quantity;
         this.purchasePrice = purchasePrice;
         this.purchaseDate = purchaseDate;
+        this.currentPrice = currentPrice;
     }
 
     public Integer getPortfolioId() {
@@ -108,6 +111,14 @@ public class CreateInvestmentRequest {
 
     public void setPurchaseDate(LocalDate purchaseDate) {
         this.purchaseDate = purchaseDate;
+    }
+
+    public BigDecimal getCurrentPrice() {
+        return currentPrice;
+    }
+
+    public void setCurrentPrice(BigDecimal currentPrice) {
+        this.currentPrice = currentPrice;
     }
 }
 
