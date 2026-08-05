@@ -1,7 +1,6 @@
 package com.beantheredonethat.portfoliomanager.dto;
 
 import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -11,8 +10,8 @@ public class CreateInvestmentRequest {
     @NotNull(message = "Portfolio ID is required")
     private Integer portfolioId;
 
-    @NotBlank(message = "Symbol is required")
     private String symbol;
+    private String schemeCode;
 
     private String companyName;
 
@@ -36,10 +35,10 @@ public class CreateInvestmentRequest {
 
     public CreateInvestmentRequest() {
     }
-
-    public CreateInvestmentRequest(Integer portfolioId, String symbol, String companyName, String assetType, String customAssetType, BigDecimal quantity, BigDecimal purchasePrice, LocalDate purchaseDate, BigDecimal currentPrice) {
+    public CreateInvestmentRequest(Integer portfolioId, String symbol,String schemeCode, String companyName, String assetType, String customAssetType, BigDecimal quantity, BigDecimal purchasePrice, LocalDate purchaseDate, BigDecimal currentPrice) {
         this.portfolioId = portfolioId;
         this.symbol = symbol;
+        this.schemeCode = schemeCode;
         this.companyName = companyName;
         this.assetType = assetType;
         this.customAssetType = customAssetType;
@@ -63,6 +62,14 @@ public class CreateInvestmentRequest {
 
     public void setSymbol(String symbol) {
         this.symbol = symbol;
+    }
+
+    public String getSchemeCode() {
+        return schemeCode;
+    }
+
+    public void setSchemeCode(String schemeCode) {
+        this.schemeCode = schemeCode;
     }
 
     public String getCompanyName() {

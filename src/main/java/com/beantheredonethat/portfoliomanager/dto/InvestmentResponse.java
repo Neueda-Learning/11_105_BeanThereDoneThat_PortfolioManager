@@ -10,6 +10,7 @@ public class InvestmentResponse {
     private Integer investmentId;
     private Integer portfolioId;
     private String symbol;
+    private String schemeCode;
     private String companyName;
     private String exchange;
     private String currency;
@@ -26,10 +27,11 @@ public class InvestmentResponse {
     public InvestmentResponse() {
     }
 
-    public InvestmentResponse(Integer investmentId, Integer portfolioId, String symbol, String companyName, String exchange, String currency, String assetType, String customAssetType, BigDecimal quantity, BigDecimal investedAmount, BigDecimal purchasePrice, BigDecimal currentPrice, BigDecimal currentValue, BigDecimal profitLoss, LocalDate purchaseDate) {
+    public InvestmentResponse(Integer investmentId, Integer portfolioId, String symbol, String schemeCode, String companyName, String exchange, String currency, String assetType, String customAssetType, BigDecimal quantity, BigDecimal investedAmount, BigDecimal purchasePrice, BigDecimal currentPrice, BigDecimal currentValue, BigDecimal profitLoss, LocalDate purchaseDate) {
         this.investmentId = investmentId;
         this.portfolioId = portfolioId;
         this.symbol = symbol;
+        this.schemeCode = schemeCode;
         this.companyName = companyName;
         this.exchange = exchange;
         this.currency = currency;
@@ -48,6 +50,7 @@ public class InvestmentResponse {
         this.investmentId = investment.getInvestmentId();
         this.portfolioId = investment.getPortfolioId();
         this.symbol = investment.getSymbol();
+        this.schemeCode = investment.getSchemeCode();
         this.companyName = investment.getCompanyName();
         this.exchange = investment.getExchange();
         this.currency = investment.getCurrency();
@@ -84,6 +87,14 @@ public class InvestmentResponse {
 
     public void setSymbol(String symbol) {
         this.symbol = symbol;
+    }
+
+    public String getSchemeCode() {
+        return schemeCode;
+    }
+
+    public void setSchemeCode(String schemeCode) {
+        this.schemeCode = schemeCode;
     }
 
     public String getCompanyName() {
