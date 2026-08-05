@@ -48,4 +48,19 @@ public class GlobalExceptionHandler {
             InvalidCredentialsException ex) {
         return Map.of("error", ex.getMessage());
     }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Map<String, String> handleIllegalArgumentException(
+            IllegalArgumentException ex) {
+        return Map.of("error", ex.getMessage());
+    }
+
+    @ExceptionHandler(YahooFinanceException.class)
+    @ResponseStatus(HttpStatus.BAD_GATEWAY)
+    public Map<String, String> handleYahooFinanceException(
+            YahooFinanceException ex) {
+        return Map.of("error", ex.getMessage());
+    }
+
 }

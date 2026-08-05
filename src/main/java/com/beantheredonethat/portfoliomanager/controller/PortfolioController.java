@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -25,9 +26,12 @@ public class PortfolioController {
     @Operation(summary = "Create a new portfolio")
     @PostMapping
     public ResponseEntity<PortfolioResponse> createPortfolio(
+            @RequestHeader(value = "X-Customer-Id", required = false) Integer headerCustomerId,
+            Authentication authentication,
             @Valid @RequestBody CreatePortfolioRequest request) {
+        Integer customerId = portfolioService.resolveCustomerId(authentication, headerCustomerId);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(portfolioService.createPortfolio(request));
+            .body(portfolioService.createPortfolio(customerId, request));
     }
 
     @Operation(summary = "Get all portfolios")

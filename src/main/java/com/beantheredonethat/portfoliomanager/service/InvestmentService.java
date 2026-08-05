@@ -2,6 +2,7 @@ package com.beantheredonethat.portfoliomanager.service;
 
 import com.beantheredonethat.portfoliomanager.dto.CreateInvestmentRequest;
 import com.beantheredonethat.portfoliomanager.dto.InvestmentResponse;
+import com.beantheredonethat.portfoliomanager.dto.SymbolResolutionResult;
 import com.beantheredonethat.portfoliomanager.dto.UpdateInvestmentRequest;
 import com.beantheredonethat.portfoliomanager.entity.Investment;
 import com.beantheredonethat.portfoliomanager.exception.InvestmentNotFoundException;
@@ -61,8 +62,21 @@ public class InvestmentService {
                         .multiply(request.getPurchasePrice())
                         .setScale(2, RoundingMode.HALF_UP);
 
+        String originalSymbol = request.getSymbol() == null ? null : request.getSymbol().trim().toUpperCase();
+        SymbolResolutionResult resolution = symbolResolverService.resolveSymbol(originalSymbol, request.getAssetType());
 
-        BigDecimal currentPrice = null;
+        String resolvedSymbol = resolution.getResolvedSymbol() != null
+                ? resolution.getResolvedSymbol()
+                : originalSymbol;
+        String resolvedExchange = resolution.getExchange();
+        String resolvedCurrency = resolution.getCurrency();
+        String resolvedName = resolution.getAssetName();
+
+        // Calculate investedAmount
+        BigDecimal investedAmount = request.getQuantity().multiply(request.getPurchasePrice()).setScale(2, RoundingMode.HALF_UP);
+
+        // Keep manual current price as fallback; use market price when available.
+        BigDecimal currentPrice = request.getCurrentPrice();
         BigDecimal currentValue = null;
         BigDecimal profitLoss = null;
 
@@ -217,18 +231,17 @@ public class InvestmentService {
 
 
     public List<InvestmentResponse> getAllInvestments() {
-
-
-        List<Investment> investments =
-                investmentRepository.findAllInvestments();
-
-
-        investments.forEach(this::refreshMarketValues);
-
-
-        return investments.stream()
-                .map(this::mapToInvestmentResponse)
-                .collect(Collectors.toList());
+        List<Investment> investments = investmentRepository.findAllInvestments();
+        for (Investment inv : investments) {
+            try {
+                refreshMarketValues(inv);
+            } catch (YahooFinanceException yfe) {
+                logger.warn("Failed to refresh market values for investment {}: {}", inv.getInvestmentId(), yfe.getMessage());
+            } catch (Exception e) {
+                logger.warn("Unexpected error refreshing market values for investment {}: {}", inv.getInvestmentId(), e.getMessage());
+            }
+        }
+        return investments.stream().map(this::mapToInvestmentResponse).collect(Collectors.toList());
     }
 
 
@@ -239,28 +252,20 @@ public class InvestmentService {
 
 
         portfolioRepository.findById(portfolioId)
-                .orElseThrow(() ->
-                        new PortfolioNotFoundException(
-                                "Portfolio not found with ID: "
-                                        + portfolioId));
+                .orElseThrow(() -> new PortfolioNotFoundException("Portfolio not found with ID: " + portfolioId));
 
-
-        List<Investment> investments =
-                investmentRepository
-                        .findByPortfolioId(portfolioId);
-
-
-        investments.forEach(this::refreshMarketValues);
-
-
-        return investments.stream()
-                .map(this::mapToInvestmentResponse)
-                .collect(Collectors.toList());
+        List<Investment> investments = investmentRepository.findByPortfolioId(portfolioId);
+        for (Investment inv : investments) {
+            try {
+                refreshMarketValues(inv);
+            } catch (YahooFinanceException yfe) {
+                logger.warn("Failed to refresh market values for investment {}: {}", inv.getInvestmentId(), yfe.getMessage());
+            } catch (Exception e) {
+                logger.warn("Unexpected error refreshing market values for investment {}: {}", inv.getInvestmentId(), e.getMessage());
+            }
+        }
+        return investments.stream().map(this::mapToInvestmentResponse).collect(Collectors.toList());
     }
-
-
-
-
     public InvestmentResponse updateInvestment(
             Integer id,
             UpdateInvestmentRequest request) {
@@ -311,8 +316,6 @@ public class InvestmentService {
                                 investment.getPurchasePrice())
                         .setScale(2,
                                 RoundingMode.HALF_UP));
-
-
 
         refreshMarketValues(investment);
 
@@ -428,6 +431,17 @@ public class InvestmentService {
                         profitLoss);
             }
 
+            // Persist refreshed values
+            investmentRepository.updateMarketValues(investment.getInvestmentId(), currentPrice, currentValue, profitLoss);
+            // Update in-memory object as well
+            investment.setCurrentPrice(currentPrice);
+            investment.setCurrentValue(currentValue);
+            investment.setProfitLoss(profitLoss);
+        } catch (YahooFinanceException yfe) {
+            logger.warn("Unable to refresh market values for symbol {}: {}", investment.getSymbol(), yfe.getMessage());
+            // Leave existing market values as-is (may be null)
+        } catch (IllegalArgumentException iae) {
+            logger.warn("Skipping refresh for unresolved symbol {}: {}", investment.getSymbol(), iae.getMessage());
 
         } catch(Exception e) {
 
@@ -435,6 +449,7 @@ public class InvestmentService {
                     "Unable to refresh investment {} : {}",
                     investment.getInvestmentId(),
                     e.getMessage());
+
         }
     }
 
