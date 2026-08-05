@@ -15,14 +15,7 @@
       <div class="pm-navbar__brand-icon"><i class="bi bi-graph-up-arrow"></i></div>
       <span class="pm-navbar__brand-name">Portfolio Manager</span>
     </a>
-    <div class="pm-navbar__search">
-      <i class="bi bi-search"></i>
-      <input type="text" placeholder="Search..." aria-label="Search"/>
-    </div>
     <div class="pm-navbar__actions">
-      <button class="pm-navbar__icon-btn" title="Notifications"><i class="bi bi-bell"></i><span class="pm-navbar__badge"></span></button>
-      <button class="pm-navbar__icon-btn" title="Settings"><i class="bi bi-gear"></i></button>
-      <div class="pm-navbar__divider"></div>
       <div class="dropdown">
         <button class="pm-navbar__avatar" data-bs-toggle="dropdown" data-initials aria-expanded="false">JD</button>
         <ul class="dropdown-menu dropdown-menu-end" style="border-radius:var(--r-lg);border:1px solid var(--gray-300);min-width:190px;padding:4px;">
@@ -69,8 +62,8 @@
       </div>
       <div style="display:flex;gap:8px;">
         <button class="pm-btn pm-btn--primary" data-bs-toggle="modal" data-bs-target="#createTransactionModal"><i class="bi bi-plus-lg"></i> Add Transaction</button>
-        <button class="pm-btn pm-btn--outline"><i class="bi bi-funnel-fill"></i> Filter</button>
-        <button class="pm-btn pm-btn--outline"><i class="bi bi-download"></i> Export</button>
+        <button type="button" class="pm-btn pm-btn--outline" data-bs-toggle="modal" data-bs-target="#transactionImportModal"><i class="bi bi-upload"></i> Import</button>
+        <button type="button" id="exportTransactionsBtn" class="pm-btn pm-btn--outline"><i class="bi bi-download"></i> Export</button>
       </div>
     </div>
 
@@ -88,9 +81,9 @@
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
           <div style="position:relative;"><i class="bi bi-search" style="position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--gray-500);font-size:.8rem;pointer-events:none;"></i><input type="text" id="transactionSearch" class="pm-input" placeholder="Search symbol..." style="padding-left:28px;width:160px;height:34px;"/></div>
           <select id="transactionTypeFilter" class="pm-input" style="width:130px;height:34px;"><option value="">All Types</option><option>BUY</option><option>SELL</option></select>
-          <input type="date" class="pm-input" style="width:140px;height:34px;" title="From date"/>
-          <input type="date" class="pm-input" style="width:140px;height:34px;" title="To date"/>
-          <button class="pm-btn pm-btn--outline pm-btn--sm"><i class="bi bi-x-lg"></i> Clear</button>
+          <input type="date" id="transactionFromDate" class="pm-input" style="width:140px;height:34px;" title="From date"/>
+          <input type="date" id="transactionToDate" class="pm-input" style="width:140px;height:34px;" title="To date"/>
+          <button id="clearTransactionFiltersBtn" type="button" class="pm-btn pm-btn--outline pm-btn--sm"><i class="bi bi-x-lg"></i> Clear</button>
         </div>
       </div>
     </div>
@@ -140,6 +133,29 @@
           <div class="modal-header"><h5 class="modal-title text-danger"><i class="bi bi-exclamation-triangle me-2"></i>Confirm Delete</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
           <div class="modal-body text-center"><i class="bi bi-trash3" style="font-size:2rem;color:var(--gray-300);display:block;margin-bottom:8px;"></i><p style="font-size:.85rem;">Are you sure you want to delete <strong id="deleteTransactionName">this transaction</strong>? This cannot be undone.</p></div>
           <div class="modal-footer justify-content-center gap-2"><button type="button" class="pm-btn pm-btn--outline" data-bs-dismiss="modal">Cancel</button><button id="confirmDeleteTransactionBtn" type="button" class="pm-btn pm-btn--danger">Delete</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade" id="transactionImportModal" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header"><h5 class="modal-title"><i class="bi bi-upload me-2" style="color:var(--pink-400);"></i>Import Transactions</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+          <form id="transactionImportForm">
+            <div class="modal-body">
+              <div id="transactionImportAlert" class="alert d-none" role="alert"></div>
+              <p style="font-size:.82rem;color:var(--gray-600);margin-bottom:12px;">Download the template, fill it with transaction rows, then upload the completed CSV or Excel file.</p>
+              <div class="d-flex gap-2 flex-wrap mb-3">
+                <button type="button" id="downloadTransactionTemplateBtn" class="pm-btn pm-btn--outline pm-btn--sm"><i class="bi bi-file-earmark-arrow-down"></i> Download Import Template</button>
+              </div>
+              <div class="mb-3">
+                <label class="pm-label" for="transactionImportFile">CSV or Excel file</label>
+                <input id="transactionImportFile" type="file" class="pm-input" accept=".csv,.xlsx,.xls" required/>
+              </div>
+              <div id="transactionImportSummary" class="d-none"></div>
+            </div>
+            <div class="modal-footer"><button type="button" class="pm-btn pm-btn--outline" data-bs-dismiss="modal">Close</button><button id="transactionImportSubmitBtn" type="submit" class="pm-btn pm-btn--primary"><i class="bi bi-upload"></i> Import</button></div>
+          </form>
         </div>
       </div>
     </div>

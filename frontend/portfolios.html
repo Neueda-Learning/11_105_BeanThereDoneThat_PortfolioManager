@@ -15,14 +15,7 @@
       <div class="pm-navbar__brand-icon"><i class="bi bi-graph-up-arrow"></i></div>
       <span class="pm-navbar__brand-name">Portfolio Manager</span>
     </a>
-    <div class="pm-navbar__search">
-      <i class="bi bi-search"></i>
-      <input type="text" placeholder="Search..." aria-label="Search"/>
-    </div>
     <div class="pm-navbar__actions">
-      <button class="pm-navbar__icon-btn" title="Notifications"><i class="bi bi-bell"></i><span class="pm-navbar__badge"></span></button>
-      <button class="pm-navbar__icon-btn" title="Settings"><i class="bi bi-gear"></i></button>
-      <div class="pm-navbar__divider"></div>
       <div class="dropdown">
         <button class="pm-navbar__avatar" data-bs-toggle="dropdown" data-initials aria-expanded="false">JD</button>
         <ul class="dropdown-menu dropdown-menu-end" style="border-radius:var(--r-lg);border:1px solid var(--gray-300);min-width:190px;padding:4px;">
@@ -83,9 +76,9 @@
       <div class="pm-card__bd--bare">
         <div class="pm-tbl-wrap">
           <table class="pm-tbl" id="portfolioTable">
-            <thead><tr><th>Portfolio ID</th><th>Customer ID</th><th>Portfolio Name</th><th style="text-align:center;">Actions</th></tr></thead>
+            <thead><tr><th>Portfolio ID</th><th>Portfolio Name</th><th style="text-align:center;">Actions</th></tr></thead>
             <tbody>
-              <tr><td colspan="4" style="padding:24px;text-align:center;color:var(--gray-500);"><span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Loading portfolios...</td></tr>
+              <tr><td colspan="3" style="padding:24px;text-align:center;color:var(--gray-500);"><span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Loading portfolios...</td></tr>
             </tbody>
           </table>
         </div>
@@ -119,7 +112,6 @@
           <div class="modal-body">
             <div id="editModalAlert" class="alert alert-danger d-none" role="alert"></div>
             <input type="hidden" id="editPortfolioId"/>
-            <div class="mb-3"><label class="pm-label" for="editCustomerId">Customer ID</label><input type="text" id="editCustomerId" class="pm-input" readonly/></div>
             <div class="mb-3"><label class="pm-label" for="editPortfolioName">Portfolio Name <span class="req">*</span></label><input type="text" id="editPortfolioName" class="pm-input" required/></div>
           </div>
           <div class="modal-footer"><button type="button" class="pm-btn pm-btn--outline" data-bs-dismiss="modal">Cancel</button><button id="editPortfolioSubmitBtn" type="submit" class="pm-btn pm-btn--primary"><i class="bi bi-check-lg"></i> Save</button></div>

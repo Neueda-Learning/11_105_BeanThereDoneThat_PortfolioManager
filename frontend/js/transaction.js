@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   wireFilters();
+  wireImportExport();
   wireCreateTransactionForm();
   wireDeleteTransactionConfirm();
   loadTransactions();
@@ -97,25 +98,60 @@ function updateSummary(rows) {
 function wireFilters() {
   const search = document.getElementById('transactionSearch');
   const type = document.getElementById('transactionTypeFilter');
+  const fromDate = document.getElementById('transactionFromDate');
+  const toDate = document.getElementById('transactionToDate');
+  const clearButton = document.getElementById('clearTransactionFiltersBtn');
 
   if (search) search.addEventListener('input', applyFilters);
   if (type) type.addEventListener('change', applyFilters);
+  if (fromDate) fromDate.addEventListener('change', applyFilters);
+  if (toDate) toDate.addEventListener('change', applyFilters);
+  if (clearButton) {
+    clearButton.addEventListener('click', () => {
+      clearFilters();
+    });
+  }
 }
 
 function applyFilters() {
   const q = (document.getElementById('transactionSearch')?.value || '').trim().toLowerCase();
   const t = (document.getElementById('transactionTypeFilter')?.value || '').trim().toLowerCase();
+  const fromDate = (document.getElementById('transactionFromDate')?.value || '').trim();
+  const toDate = (document.getElementById('transactionToDate')?.value || '').trim();
+
+  const fromTime = fromDate ? new Date(fromDate).getTime() : null;
+  const toTime = toDate ? new Date(toDate).getTime() : null;
 
   filteredTransactions = allTransactions.filter((row) => {
     const symbol = String(row.symbol || '').toLowerCase();
     const company = String(row.companyName || '').toLowerCase();
     const type = String(row.transactionType || '').toLowerCase();
+    const transactionTime = row.transactionDate ? new Date(row.transactionDate).getTime() : null;
 
     const matchQuery = !q || symbol.includes(q) || company.includes(q);
     const matchType = !t || type === t;
-    return matchQuery && matchType;
+    const matchFrom = fromTime == null || (transactionTime != null && transactionTime >= fromTime);
+    const matchTo = toTime == null || (transactionTime != null && transactionTime <= toTime);
+    return matchQuery && matchType && matchFrom && matchTo;
   });
 
+  renderTable(filteredTransactions);
+  setText('transactionTableInfo', `${filteredTransactions.length} records`);
+  setText('transactionFooterText', `Showing ${filteredTransactions.length} of ${allTransactions.length} records`);
+}
+
+function clearFilters() {
+  const search = document.getElementById('transactionSearch');
+  const type = document.getElementById('transactionTypeFilter');
+  const fromDate = document.getElementById('transactionFromDate');
+  const toDate = document.getElementById('transactionToDate');
+
+  if (search) search.value = '';
+  if (type) type.value = '';
+  if (fromDate) fromDate.value = '';
+  if (toDate) toDate.value = '';
+
+  filteredTransactions = [...allTransactions];
   renderTable(filteredTransactions);
   setText('transactionTableInfo', `${filteredTransactions.length} records`);
   setText('transactionFooterText', `Showing ${filteredTransactions.length} of ${allTransactions.length} records`);
@@ -222,6 +258,80 @@ function wireDeleteTransactionConfirm() {
   });
 }
 
+function wireImportExport() {
+  const exportButton = document.getElementById('exportTransactionsBtn');
+  const templateButton = document.getElementById('downloadTransactionTemplateBtn');
+  const importForm = document.getElementById('transactionImportForm');
+  const importModal = document.getElementById('transactionImportModal');
+
+  if (exportButton) {
+    exportButton.addEventListener('click', async () => {
+      setButtonLoading(exportButton, true, 'Exporting...');
+      try {
+        const blob = await TransactionAPI.exportCsv();
+        triggerBrowserDownload(blob, `transactions-customer-${getCustomerId() || 'data'}.csv`);
+        showPageAlert('Transaction CSV export generated successfully.', 'success');
+      } catch (error) {
+        console.error('[Transactions] Export failed:', error);
+        showPageAlert(error.message || 'Unable to export transactions.', 'danger');
+      } finally {
+        setButtonLoading(exportButton, false, '<i class="bi bi-download"></i> Export');
+      }
+    });
+  }
+
+  if (templateButton) {
+    templateButton.addEventListener('click', async () => {
+      setButtonLoading(templateButton, true, 'Downloading...');
+      try {
+        const blob = await TransactionAPI.downloadImportTemplate();
+        triggerBrowserDownload(blob, 'transaction-import-template.csv');
+        showImportAlert('transactionImportAlert', 'Template downloaded successfully.', 'success');
+      } catch (error) {
+        console.error('[Transactions] Template download failed:', error);
+        showImportAlert('transactionImportAlert', error.message || 'Unable to download the import template.', 'danger');
+      } finally {
+        setButtonLoading(templateButton, false, '<i class="bi bi-file-earmark-arrow-down"></i> Download Import Template');
+      }
+    });
+  }
+
+  if (importModal) {
+    importModal.addEventListener('show.bs.modal', resetTransactionImportState);
+  }
+
+  if (importForm) {
+    importForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      hideImportAlert('transactionImportAlert');
+
+      const fileInput = document.getElementById('transactionImportFile');
+      const file = fileInput?.files?.[0] || null;
+      if (!file) {
+        showImportAlert('transactionImportAlert', 'Please choose a CSV or Excel file to import.', 'danger');
+        return;
+      }
+
+      const submitButton = document.getElementById('transactionImportSubmitBtn');
+      setButtonLoading(submitButton, true, 'Importing...');
+
+      try {
+        const summary = await TransactionAPI.importFile(file);
+        renderTransactionImportSummary(summary);
+        const alertType = (summary.failedCount || 0) > 0 ? 'warning' : 'success';
+        showImportAlert('transactionImportAlert', buildImportSummaryMessage(summary, 'transaction', 'transactions'), alertType);
+        showPageAlert(buildImportSummaryMessage(summary, 'transaction', 'transactions'), alertType === 'warning' ? 'warning' : 'success');
+        await loadTransactions();
+      } catch (error) {
+        console.error('[Transactions] Import failed:', error);
+        showImportAlert('transactionImportAlert', error.message || 'Unable to import transactions.', 'danger');
+      } finally {
+        setButtonLoading(submitButton, false, '<i class="bi bi-upload"></i> Import');
+      }
+    });
+  }
+}
+
 function showPageAlert(message, type) {
   const main = document.querySelector('main.pm-main');
   if (!main) return;
@@ -235,6 +345,65 @@ function showPageAlert(message, type) {
   alert.setAttribute('role', 'alert');
   alert.innerHTML = `${escapeHtml(message)}<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>`;
   main.prepend(alert);
+}
+
+function resetTransactionImportState() {
+  hideImportAlert('transactionImportAlert');
+  const summary = document.getElementById('transactionImportSummary');
+  if (summary) {
+    summary.classList.add('d-none');
+    summary.innerHTML = '';
+  }
+
+  const fileInput = document.getElementById('transactionImportFile');
+  if (fileInput) {
+    fileInput.value = '';
+  }
+}
+
+function renderTransactionImportSummary(summary) {
+  const container = document.getElementById('transactionImportSummary');
+  if (!container) return;
+
+  const failures = Array.isArray(summary?.failures) ? summary.failures : [];
+  const rowsHtml = failures.length
+    ? `<div class="alert alert-warning mb-0"><div style="font-weight:600;margin-bottom:6px;">Failed rows</div><ul class="mb-0 ps-3">${failures.map((failure) => `<li>Row ${escapeHtml(String(failure.rowNumber || ''))}: ${escapeHtml(failure.reason || 'Unable to import this row.')}</li>`).join('')}</ul></div>`
+    : '<div class="alert alert-success mb-0">No row-level validation errors were found.</div>';
+
+  container.classList.remove('d-none');
+  container.innerHTML = `
+    <div class="pm-card" style="border:1px solid var(--gray-200);box-shadow:none;">
+      <div class="pm-card__bd" style="padding:12px 14px;">
+        <div style="font-size:.82rem;font-weight:700;margin-bottom:8px;">Import Summary</div>
+        <div style="font-size:.8rem;color:var(--gray-600);margin-bottom:10px;">Successful imports: ${escapeHtml(String(summary?.successfulCount || 0))} | Failed rows: ${escapeHtml(String(summary?.failedCount || 0))}</div>
+        ${rowsHtml}
+      </div>
+    </div>`;
+}
+
+function buildImportSummaryMessage(summary, singularLabel, pluralLabel) {
+  const successful = Number(summary?.successfulCount || 0);
+  const failed = Number(summary?.failedCount || 0);
+  const successLabel = successful === 1 ? singularLabel : pluralLabel;
+  if (failed > 0) {
+    return `Imported ${successful} ${successLabel}. ${failed} row${failed === 1 ? '' : 's'} failed validation.`;
+  }
+  return `Imported ${successful} ${successLabel} successfully.`;
+}
+
+function showImportAlert(elementId, message, type) {
+  const alert = document.getElementById(elementId);
+  if (!alert) return;
+  alert.className = `alert alert-${type}`;
+  alert.textContent = message;
+  alert.classList.remove('d-none');
+}
+
+function hideImportAlert(elementId) {
+  const alert = document.getElementById(elementId);
+  if (alert) {
+    alert.classList.add('d-none');
+  }
 }
 
 function showInlineAlert(message, type) {
@@ -329,4 +498,15 @@ function escapeHtml(value) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+function triggerBrowserDownload(blob, fileName) {
+  const url = window.URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = fileName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.URL.revokeObjectURL(url);
 }

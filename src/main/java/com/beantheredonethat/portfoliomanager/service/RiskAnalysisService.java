@@ -59,11 +59,11 @@ public class RiskAnalysisService {
         return response;
     }
 
-    public RiskAnalysisResponse analyzePortfolio(Integer portfolioId) {
-        portfolioRepository.findById(portfolioId)
+    public RiskAnalysisResponse analyzePortfolio(Integer portfolioId, Integer customerId) {
+        portfolioRepository.findByIdAndCustomerId(portfolioId, customerId)
                 .orElseThrow(() -> new PortfolioNotFoundException("Portfolio not found with ID: " + portfolioId));
 
-        List<Investment> investments = investmentRepository.findByPortfolioId(portfolioId);
+        List<Investment> investments = investmentRepository.findByPortfolioIdAndCustomerId(portfolioId, customerId);
         if (investments.isEmpty()) {
             throw new IllegalArgumentException("Portfolio has no investments to analyze: " + portfolioId);
         }

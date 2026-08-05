@@ -15,14 +15,7 @@
       <div class="pm-navbar__brand-icon"><i class="bi bi-graph-up-arrow"></i></div>
       <span class="pm-navbar__brand-name">Portfolio Manager</span>
     </a>
-    <div class="pm-navbar__search">
-      <i class="bi bi-search"></i>
-      <input type="text" placeholder="Search..." aria-label="Search"/>
-    </div>
     <div class="pm-navbar__actions">
-      <button class="pm-navbar__icon-btn" title="Notifications"><i class="bi bi-bell"></i><span class="pm-navbar__badge"></span></button>
-      <button class="pm-navbar__icon-btn" title="Settings"><i class="bi bi-gear"></i></button>
-      <div class="pm-navbar__divider"></div>
       <div class="dropdown">
         <button class="pm-navbar__avatar" data-bs-toggle="dropdown" data-initials aria-expanded="false">JD</button>
         <ul class="dropdown-menu dropdown-menu-end" style="border-radius:var(--r-lg);border:1px solid var(--gray-300);min-width:190px;padding:4px;">
@@ -69,7 +62,8 @@
       </div>
       <div style="display:flex;gap:8px;">
         <a href="add-investment.html" class="pm-btn pm-btn--primary"><i class="bi bi-plus-lg"></i> Add Investment</a>
-        <button class="pm-btn pm-btn--outline"><i class="bi bi-download"></i> Export</button>
+        <button type="button" class="pm-btn pm-btn--outline" data-bs-toggle="modal" data-bs-target="#investmentImportModal"><i class="bi bi-upload"></i> Import</button>
+        <button type="button" id="exportInvestmentsBtn" class="pm-btn pm-btn--outline"><i class="bi bi-download"></i> Export</button>
       </div>
     </div>
 
@@ -86,6 +80,10 @@
       <div class="pm-card__hd" style="flex-wrap:wrap;gap:8px;">
         <span class="pm-card__title"><i class="bi bi-bar-chart-fill"></i> Holdings</span>
         <div style="display:flex;gap:8px;margin-left:auto;flex-wrap:wrap;">
+          <select id="portfolioFilter" class="pm-input" style="width:210px;height:34px;" aria-label="Portfolio filter">
+            <option value="">Loading portfolios...</option>
+          </select>
+          <select id="displayCurrency" class="pm-input" style="width:130px;height:34px;" aria-label="Display currency"></select>
           <div style="position:relative;"><i class="bi bi-search" style="position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--gray-500);font-size:.8rem;pointer-events:none;"></i><input type="text" id="searchInput" class="pm-input" placeholder="Search..." style="padding-left:28px;width:180px;height:34px;"/></div>
           <select id="typeFilter" class="pm-input" style="width:130px;height:34px;"><option value="">All Types</option><option>Stock</option><option>Mutual Fund</option><option>ETF</option><option>Cryptocurrency</option><option>Bond</option><option>Gold</option><option>Custom</option></select>
         </div>
@@ -94,9 +92,9 @@
       <div class="pm-card__bd--bare">
         <div class="pm-tbl-wrap">
           <table class="pm-tbl" id="investTable">
-            <thead><tr><th>ID</th><th>Company Name</th><th>Symbol</th><th>Exchange</th><th>Currency</th><th>Asset Type</th><th>Quantity</th><th>Purchase Price</th><th>Current Value</th><th>Profit/Loss</th><th>Purchase Date</th><th style="text-align:center;">Actions</th></tr></thead>
+            <thead><tr><th>ID</th><th>Company Name</th><th>Symbol</th><th>Exchange</th><th>Currency</th><th>Asset Type</th><th>Quantity</th><th>Purchase Price</th><th>Current Price</th><th>Current Value</th><th>Profit/Loss</th><th>Purchase Date</th><th style="text-align:center;">Actions</th></tr></thead>
             <tbody>
-              <tr><td colspan="12" style="padding:24px;text-align:center;color:var(--gray-500);"><span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Loading investments...</td></tr>
+              <tr><td colspan="13" style="padding:24px;text-align:center;color:var(--gray-500);"><span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Loading investments...</td></tr>
             </tbody>
           </table>
         </div>
@@ -118,11 +116,11 @@
             <input type="hidden" id="editInvestmentId"/>
             <div class="row g-3">
               <div class="col-8"><label class="pm-label" for="editCompanyName">Company / Asset</label><input id="editCompanyName" type="text" class="pm-input" readonly/></div>
-              <div class="col-4"><label class="pm-label" for="editSymbol">Symbol</label><input id="editSymbol" type="text" class="pm-input" readonly/></div>
-              <div class="col-6"><label class="pm-label" for="editAssetType">Asset Type <span class="req">*</span></label><select id="editAssetType" class="pm-select" required><option>Stock</option><option>Mutual Fund</option><option>ETF</option><option>Cryptocurrency</option><option>Bond</option><option>Gold</option><option>Custom</option></select></div>
+              <div class="col-4"><label class="pm-label" for="editSymbol" id="editIdentifierLabel">Symbol</label><input id="editSymbol" type="text" class="pm-input" readonly/></div>
+              <div class="col-6"><label class="pm-label" for="editAssetType">Asset Type</label><select id="editAssetType" class="pm-select" disabled><option>Stock</option><option>Mutual Fund</option><option>ETF</option><option>Cryptocurrency</option><option>Bond</option><option>Gold</option><option>Custom</option></select></div>
               <div class="col-6" id="editCustomAssetTypeWrap" style="display:none;"><label class="pm-label" for="editCustomAssetType">Custom Type Name</label><input id="editCustomAssetType" type="text" class="pm-input"/></div>
               <div class="col-6"><label class="pm-label" for="editQuantity">Quantity <span class="req">*</span></label><input id="editQuantity" type="number" class="pm-input" min="0" step="any" required/></div>
-              <div class="col-6"><label class="pm-label" for="editPurchasePrice">Purchase Price (&#8377;) <span class="req">*</span></label><input id="editPurchasePrice" type="number" class="pm-input" min="0" step="0.01" required/></div>
+              <div class="col-6"><label class="pm-label" for="editPurchasePrice">Purchase Price <span class="req">*</span> <span id="editPurchasePriceCurrencyHint" style="color:var(--gray-500);font-weight:600;">(INR)</span></label><input id="editPurchasePrice" type="number" class="pm-input" min="0" step="0.01" required/></div>
               <div class="col-12"><label class="pm-label" for="editPurchaseDate">Purchase Date <span class="req">*</span></label><input id="editPurchaseDate" type="date" class="pm-input" required/></div>
             </div>
           </div>
@@ -139,6 +137,29 @@
         <div class="modal-header"><h5 class="modal-title text-danger"><i class="bi bi-exclamation-triangle me-2"></i>Confirm Delete</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
         <div class="modal-body text-center"><i class="bi bi-trash3" style="font-size:2rem;color:var(--gray-300);display:block;margin-bottom:8px;"></i><p style="font-size:.85rem;">Are you sure you want to delete <strong id="deleteInvestmentName">this investment</strong>? This cannot be undone.</p></div>
         <div class="modal-footer justify-content-center gap-2"><button type="button" class="pm-btn pm-btn--outline" data-bs-dismiss="modal">Cancel</button><button id="confirmDeleteBtn" type="button" class="pm-btn pm-btn--danger">Delete</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="investmentImportModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header"><h5 class="modal-title"><i class="bi bi-upload me-2" style="color:var(--pink-400);"></i>Import Investments</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+        <form id="investmentImportForm">
+          <div class="modal-body">
+            <div id="investmentImportAlert" class="alert d-none" role="alert"></div>
+            <p style="font-size:.82rem;color:var(--gray-600);margin-bottom:12px;">Download the template, fill it with investment rows, then upload the completed CSV or Excel file.</p>
+            <div class="d-flex gap-2 flex-wrap mb-3">
+              <button type="button" id="downloadInvestmentTemplateBtn" class="pm-btn pm-btn--outline pm-btn--sm"><i class="bi bi-file-earmark-arrow-down"></i> Download Import Template</button>
+            </div>
+            <div class="mb-3">
+              <label class="pm-label" for="investmentImportFile">CSV or Excel file</label>
+              <input id="investmentImportFile" type="file" class="pm-input" accept=".csv,.xlsx,.xls" required/>
+            </div>
+            <div id="investmentImportSummary" class="d-none"></div>
+          </div>
+          <div class="modal-footer"><button type="button" class="pm-btn pm-btn--outline" data-bs-dismiss="modal">Close</button><button id="investmentImportSubmitBtn" type="submit" class="pm-btn pm-btn--primary"><i class="bi bi-upload"></i> Import</button></div>
+        </form>
       </div>
     </div>
   </div>

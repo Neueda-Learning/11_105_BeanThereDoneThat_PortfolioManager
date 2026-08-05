@@ -97,7 +97,7 @@ public class AmfiMarketDataService implements MarketDataService {
 
                             MarketDataResponse resp = new MarketDataResponse();
                             resp.setPrice(price);
-                            resp.setCurrency(request.getCurrency());
+                            resp.setCurrency("INR");
                             resp.setTimestamp(Instant.now());
                             resp.setAssetType(AssetType.MUTUAL_FUND);
                             resp.setProviderId("AMFI");

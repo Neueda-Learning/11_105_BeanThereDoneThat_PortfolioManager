@@ -6,8 +6,11 @@
 
 const API_BASE = 'http://localhost:8080';
 
-function buildCustomerScopedHeaders() {
-  const headers = { 'Content-Type': 'application/json' };
+function buildCustomerScopedHeaders(includeJsonContentType = true) {
+  const headers = {};
+  if (includeJsonContentType) {
+    headers['Content-Type'] = 'application/json';
+  }
   const customerId = typeof window.getCustomerId === 'function'
     ? window.getCustomerId()
     : null;
@@ -36,6 +39,68 @@ async function parseApiResponse(response) {
   }
 
   return payload;
+}
+
+async function parseBlobApiResponse(response) {
+  if (!response.ok) {
+    let payload = null;
+    try {
+      payload = await response.json();
+    } catch (e) {
+      payload = null;
+    }
+    const message =
+      (payload && (payload.message || payload.error || payload.details)) ||
+      `Request failed with status ${response.status}`;
+    throw new Error(message);
+  }
+
+  return await response.blob();
+}
+
+function toNumeric(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function aggregateInvestmentsBySymbol(investments) {
+  const grouped = new Map();
+
+  (Array.isArray(investments) ? investments : []).forEach((investment) => {
+    if (!investment || typeof investment !== 'object') return;
+
+    const symbol = String(investment.symbol || '').trim();
+    if (!symbol) return;
+
+    const existing = grouped.get(symbol);
+    const purchaseDate = investment.purchaseDate || null;
+
+    if (!existing) {
+      grouped.set(symbol, {
+        symbol,
+        companyName: investment.companyName || symbol,
+        assetType: investment.assetType || 'Unknown',
+        currency: investment.currency || null,
+        quantity: toNumeric(investment.quantity),
+        investedAmount: toNumeric(investment.investedAmount),
+        currentValue: toNumeric(investment.currentValue),
+        profitLoss: toNumeric(investment.profitLoss),
+        purchaseDate,
+      });
+      return;
+    }
+
+    existing.quantity += toNumeric(investment.quantity);
+    existing.investedAmount += toNumeric(investment.investedAmount);
+    existing.currentValue += toNumeric(investment.currentValue);
+    existing.profitLoss += toNumeric(investment.profitLoss);
+
+    if (!existing.purchaseDate && purchaseDate) {
+      existing.purchaseDate = purchaseDate;
+    }
+  });
+
+  return Array.from(grouped.values());
 }
 
 async function registerCustomer(registerPayload) {
@@ -79,8 +144,82 @@ const AuthAPI = {
 
 /* ── Customer ─────────────────────────────────────────────── */
 const CustomerAPI = {
-  getProfile: ()     => Promise.resolve({ customerId:1, firstName:'Jane', lastName:'Doe', email:'jane@example.com', phone:'+91 98765 43210' }),
-  update:     (data) => Promise.resolve({ ...data }),
+  getProfile: async () => {
+    try {
+      const response = await fetch(`${API_BASE}/api/customers/profile`, {
+        method: 'GET',
+        headers: buildCustomerScopedHeaders(),
+      });
+      const payload = await parseApiResponse(response);
+      console.log('[API] GET /api/customers/profile response:', payload);
+      return payload;
+    } catch (error) {
+      throw new Error(error.message || 'Unable to fetch customer profile.');
+    }
+  },
+  update: async (data) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/customers/profile`, {
+        method: 'PUT',
+        headers: buildCustomerScopedHeaders(),
+        body: JSON.stringify(data),
+      });
+      const payload = await parseApiResponse(response);
+      console.log('[API] PUT /api/customers/profile response:', payload);
+      return payload;
+    } catch (error) {
+      throw new Error(error.message || 'Unable to update customer profile.');
+    }
+  },
+  changePassword: async (data) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/customers/profile/password`, {
+        method: 'PUT',
+        headers: buildCustomerScopedHeaders(),
+        body: JSON.stringify(data),
+      });
+      await parseApiResponse(response);
+      return true;
+    } catch (error) {
+      throw new Error(error.message || 'Unable to change password.');
+    }
+  },
+  getSummary: async () => {
+    try {
+      const response = await fetch(`${API_BASE}/api/customers/profile/summary`, {
+        method: 'GET',
+        headers: buildCustomerScopedHeaders(),
+      });
+      const payload = await parseApiResponse(response);
+      console.log('[API] GET /api/customers/profile/summary response:', payload);
+      return payload;
+    } catch (error) {
+      throw new Error(error.message || 'Unable to fetch account summary.');
+    }
+  },
+  exportCsv: async () => {
+    try {
+      const response = await fetch(`${API_BASE}/api/customers/profile/export`, {
+        method: 'GET',
+        headers: buildCustomerScopedHeaders(),
+      });
+      return await parseBlobApiResponse(response);
+    } catch (error) {
+      throw new Error(error.message || 'Unable to export customer data.');
+    }
+  },
+  deleteAccount: async () => {
+    try {
+      const response = await fetch(`${API_BASE}/api/customers/profile`, {
+        method: 'DELETE',
+        headers: buildCustomerScopedHeaders(),
+      });
+      await parseApiResponse(response);
+      return true;
+    } catch (error) {
+      throw new Error(error.message || 'Unable to delete account.');
+    }
+  },
 };
 
 /* ── Portfolio ────────────────────────────────────────────── */
@@ -98,9 +237,12 @@ const PortfolioAPI = {
       throw new Error(error.message || 'Unable to fetch portfolios.');
     }
   },
-  getByCustomer: async (customerId) => {
+  getByCustomer: async () => {
     try {
-      const response = await fetch(`${API_BASE}/api/customers/${customerId}/portfolios`, {
+      const currentCustomerId = typeof window.getCustomerId === 'function'
+        ? window.getCustomerId()
+        : null;
+      const response = await fetch(`${API_BASE}/api/customers/${currentCustomerId}/portfolios`, {
         method: 'GET',
         headers: buildCustomerScopedHeaders(),
       });
@@ -173,7 +315,7 @@ const InvestmentAPI = {
     try {
       const response = await fetch(`${API_BASE}/api/investments`, {
         method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
+        headers: buildCustomerScopedHeaders(),
       });
       const payload = await parseApiResponse(response);
       console.log('[API] GET /api/investments response:', payload);
@@ -182,11 +324,24 @@ const InvestmentAPI = {
       throw new Error(error.message || 'Unable to fetch investments.');
     }
   },
+  getByPortfolio: async (portfolioId) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/portfolios/${portfolioId}/investments`, {
+        method: 'GET',
+        headers: buildCustomerScopedHeaders(),
+      });
+      const payload = await parseApiResponse(response);
+      console.log(`[API] GET /api/portfolios/${portfolioId}/investments response:`, payload);
+      return payload;
+    } catch (error) {
+      throw new Error(error.message || 'Unable to fetch portfolio investments.');
+    }
+  },
   getById: async (id) => {
     try {
       const response = await fetch(`${API_BASE}/api/investments/${id}`, {
         method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
+        headers: buildCustomerScopedHeaders(),
       });
       const payload = await parseApiResponse(response);
       console.log(`[API] GET /api/investments/${id} response:`, payload);
@@ -199,7 +354,7 @@ const InvestmentAPI = {
     try {
       const response = await fetch(`${API_BASE}/api/investments`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: buildCustomerScopedHeaders(),
         body: JSON.stringify(data),
       });
       const payload = await parseApiResponse(response);
@@ -213,7 +368,7 @@ const InvestmentAPI = {
     try {
       const response = await fetch(`${API_BASE}/api/investments/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: buildCustomerScopedHeaders(),
         body: JSON.stringify(data),
       });
       const payload = await parseApiResponse(response);
@@ -227,13 +382,63 @@ const InvestmentAPI = {
     try {
       const response = await fetch(`${API_BASE}/api/investments/${id}`, {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
+        headers: buildCustomerScopedHeaders(),
       });
       const payload = await parseApiResponse(response);
       console.log(`[API] DELETE /api/investments/${id} response:`, payload);
       return payload;
     } catch (error) {
       throw new Error(error.message || 'Unable to delete investment.');
+    }
+  },
+  getExchangeRate: async (fromCurrency, toCurrency) => {
+    try {
+      const from = encodeURIComponent(String(fromCurrency || '').trim().toUpperCase());
+      const to = encodeURIComponent(String(toCurrency || '').trim().toUpperCase());
+      const response = await fetch(`${API_BASE}/api/investments/exchange-rate?from=${from}&to=${to}`, {
+        method: 'GET',
+        headers: buildCustomerScopedHeaders(),
+      });
+      const payload = await parseApiResponse(response);
+      return payload;
+    } catch (error) {
+      throw new Error(error.message || 'Unable to fetch exchange rate.');
+    }
+  },
+  exportCsv: async () => {
+    try {
+      const response = await fetch(`${API_BASE}/api/investments/export`, {
+        method: 'GET',
+        headers: buildCustomerScopedHeaders(),
+      });
+      return await parseBlobApiResponse(response);
+    } catch (error) {
+      throw new Error(error.message || 'Unable to export investments.');
+    }
+  },
+  downloadImportTemplate: async () => {
+    try {
+      const response = await fetch(`${API_BASE}/api/investments/import-template`, {
+        method: 'GET',
+        headers: buildCustomerScopedHeaders(),
+      });
+      return await parseBlobApiResponse(response);
+    } catch (error) {
+      throw new Error(error.message || 'Unable to download the investment import template.');
+    }
+  },
+  importFile: async (file) => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const response = await fetch(`${API_BASE}/api/investments/import`, {
+        method: 'POST',
+        headers: buildCustomerScopedHeaders(false),
+        body: formData,
+      });
+      return await parseApiResponse(response);
+    } catch (error) {
+      throw new Error(error.message || 'Unable to import investments.');
     }
   },
 };
@@ -244,7 +449,7 @@ const TransactionAPI = {
     try {
       const response = await fetch(`${API_BASE}/api/transactions`, {
         method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
+        headers: buildCustomerScopedHeaders(),
       });
       const payload = await parseApiResponse(response);
       console.log('[API] GET /api/transactions response:', payload);
@@ -257,7 +462,7 @@ const TransactionAPI = {
     try {
       const response = await fetch(`${API_BASE}/api/transactions/${id}`, {
         method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
+        headers: buildCustomerScopedHeaders(),
       });
       const payload = await parseApiResponse(response);
       console.log(`[API] GET /api/transactions/${id} response:`, payload);
@@ -270,7 +475,7 @@ const TransactionAPI = {
     try {
       const response = await fetch(`${API_BASE}/api/transactions`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: buildCustomerScopedHeaders(),
         body: JSON.stringify(data),
       });
       const payload = await parseApiResponse(response);
@@ -284,7 +489,7 @@ const TransactionAPI = {
     try {
       const response = await fetch(`${API_BASE}/api/transactions/${id}`, {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
+        headers: buildCustomerScopedHeaders(),
       });
       const payload = await parseApiResponse(response);
       console.log(`[API] DELETE /api/transactions/${id} response:`, payload);
@@ -297,13 +502,81 @@ const TransactionAPI = {
     try {
       const response = await fetch(`${API_BASE}/api/investments/${investmentId}/transactions`, {
         method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
+        headers: buildCustomerScopedHeaders(),
       });
       const payload = await parseApiResponse(response);
       console.log(`[API] GET /api/investments/${investmentId}/transactions response:`, payload);
       return payload;
     } catch (error) {
       throw new Error(error.message || 'Unable to fetch investment transactions.');
+    }
+  },
+  exportCsv: async () => {
+    try {
+      const response = await fetch(`${API_BASE}/api/transactions/export`, {
+        method: 'GET',
+        headers: buildCustomerScopedHeaders(),
+      });
+      return await parseBlobApiResponse(response);
+    } catch (error) {
+      throw new Error(error.message || 'Unable to export transactions.');
+    }
+  },
+  downloadImportTemplate: async () => {
+    try {
+      const response = await fetch(`${API_BASE}/api/transactions/import-template`, {
+        method: 'GET',
+        headers: buildCustomerScopedHeaders(),
+      });
+      return await parseBlobApiResponse(response);
+    } catch (error) {
+      throw new Error(error.message || 'Unable to download the transaction import template.');
+    }
+  },
+  importFile: async (file) => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const response = await fetch(`${API_BASE}/api/transactions/import`, {
+        method: 'POST',
+        headers: buildCustomerScopedHeaders(false),
+        body: formData,
+      });
+      return await parseApiResponse(response);
+    } catch (error) {
+      throw new Error(error.message || 'Unable to import transactions.');
+    }
+  },
+};
+
+/* ── Risk Analysis ────────────────────────────────────────── */
+const RiskAnalysisAPI = {
+  analyzePortfolio: async (portfolioId) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/risk-analysis/portfolio/${portfolioId}`, {
+        method: 'GET',
+        headers: buildCustomerScopedHeaders(),
+      });
+      const payload = await parseApiResponse(response);
+      console.log(`[API] GET /api/risk-analysis/portfolio/${portfolioId} response:`, payload);
+      return payload;
+    } catch (error) {
+      throw new Error(error.message || 'Unable to analyze portfolio risk.');
+    }
+  },
+  analyzeStock: async (symbol, assetType = 'STOCK') => {
+    try {
+      const encodedSymbol = encodeURIComponent(String(symbol || '').trim());
+      const encodedAssetType = encodeURIComponent(String(assetType || 'STOCK').trim().toUpperCase());
+      const response = await fetch(`${API_BASE}/api/risk-analysis/stock/${encodedSymbol}?assetType=${encodedAssetType}`, {
+        method: 'GET',
+        headers: buildCustomerScopedHeaders(),
+      });
+      const payload = await parseApiResponse(response);
+      console.log(`[API] GET /api/risk-analysis/stock/${encodedSymbol}?assetType=${encodedAssetType} response:`, payload);
+      return payload;
+    } catch (error) {
+      throw new Error(error.message || 'Unable to analyze stock risk.');
     }
   },
 };
@@ -316,3 +589,5 @@ window.CustomerAPI    = CustomerAPI;
 window.PortfolioAPI   = PortfolioAPI;
 window.InvestmentAPI  = InvestmentAPI;
 window.TransactionAPI = TransactionAPI;
+window.RiskAnalysisAPI = RiskAnalysisAPI;
+window.aggregateInvestmentsBySymbol = aggregateInvestmentsBySymbol;

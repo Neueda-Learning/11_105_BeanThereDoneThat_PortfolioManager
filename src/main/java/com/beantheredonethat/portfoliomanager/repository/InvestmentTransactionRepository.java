@@ -139,6 +139,26 @@ public class InvestmentTransactionRepository {
                 : Optional.of(results.get(0));
     }
 
+    public Optional<InvestmentTransaction> findByIdAndCustomerId(Integer transactionId, Integer customerId) {
+        String sql =
+                "SELECT t.*, i.symbol, i.company_name, i.asset_type " +
+                        "FROM Investment_Transaction t " +
+                        "JOIN Investment i ON t.investment_id = i.investment_id " +
+                        "JOIN Portfolio p ON i.portfolio_id = p.portfolio_id " +
+                        "WHERE t.transaction_id = ? AND p.customer_id = ?";
+
+        List<InvestmentTransaction> results =
+                jdbcTemplate.query(
+                        sql,
+                        transactionRowMapper,
+                        transactionId,
+                        customerId);
+
+        return results.isEmpty()
+                ? Optional.empty()
+                : Optional.of(results.get(0));
+    }
+
     public List<InvestmentTransaction> findAllTransactions() {
 
         String sql =
@@ -149,6 +169,21 @@ public class InvestmentTransactionRepository {
         return jdbcTemplate.query(
                 sql,
                 transactionRowMapper);
+    }
+
+    public List<InvestmentTransaction> findAllTransactionsByCustomerId(Integer customerId) {
+
+        String sql =
+                "SELECT t.*, i.symbol, i.company_name, i.asset_type " +
+                        "FROM Investment_Transaction t " +
+                        "JOIN Investment i ON t.investment_id = i.investment_id " +
+                        "JOIN Portfolio p ON i.portfolio_id = p.portfolio_id " +
+                        "WHERE p.customer_id = ?";
+
+        return jdbcTemplate.query(
+                sql,
+                transactionRowMapper,
+                customerId);
     }
 
     public List<InvestmentTransaction> findByInvestmentId(
@@ -165,6 +200,44 @@ public class InvestmentTransactionRepository {
                 transactionRowMapper,
                 investmentId);
     }
+
+    public List<InvestmentTransaction> findByInvestmentIdAndCustomerId(Integer investmentId, Integer customerId) {
+
+        String sql =
+                "SELECT t.*, i.symbol, i.company_name, i.asset_type " +
+                        "FROM Investment_Transaction t " +
+                        "JOIN Investment i ON t.investment_id = i.investment_id " +
+                        "JOIN Portfolio p ON i.portfolio_id = p.portfolio_id " +
+                        "WHERE t.investment_id = ? AND p.customer_id = ?";
+
+        return jdbcTemplate.query(
+                sql,
+                transactionRowMapper,
+                investmentId,
+                customerId);
+    }
+
+        public List<InvestmentTransaction> findByCustomerId(Integer customerId) {
+                String sql =
+                                "SELECT t.*, i.symbol, i.company_name, i.asset_type " +
+                                                "FROM Investment_Transaction t " +
+                                                "JOIN Investment i ON t.investment_id = i.investment_id " +
+                                                "JOIN Portfolio p ON i.portfolio_id = p.portfolio_id " +
+                                                "WHERE p.customer_id = ?";
+
+                return jdbcTemplate.query(sql, transactionRowMapper, customerId);
+        }
+
+        public int countByCustomerId(Integer customerId) {
+                String sql =
+                                "SELECT COUNT(*) FROM Investment_Transaction t " +
+                                                "JOIN Investment i ON t.investment_id = i.investment_id " +
+                                                "JOIN Portfolio p ON i.portfolio_id = p.portfolio_id " +
+                                                "WHERE p.customer_id = ?";
+
+                Integer count = jdbcTemplate.queryForObject(sql, Integer.class, customerId);
+                return count == null ? 0 : count;
+        }
 
     public void deleteTransaction(
             Integer transactionId) {

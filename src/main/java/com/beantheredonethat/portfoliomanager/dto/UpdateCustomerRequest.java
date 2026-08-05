@@ -17,8 +17,9 @@ public class UpdateCustomerRequest {
     @Email(message = "Enter a valid email")
     private String email;
 
-    @Pattern(regexp = "^[0-9]{10}$",
-            message = "Phone number must contain exactly 10 digits")
+        @Pattern(
+            regexp = "^(?=(?:\\D*\\d){7,15}\\D*$)[+()\\-\\s0-9]+$",
+            message = "Phone number must be 7 to 15 digits and may include +, spaces, hyphens, or parentheses")
     private String phoneNumber;
 
     public String getCustomerName() {

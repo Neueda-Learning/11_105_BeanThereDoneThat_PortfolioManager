@@ -46,18 +46,16 @@ function renderPortfolioTable(portfolios) {
   if (!tbody) return;
 
   if (!portfolios.length) {
-    tbody.innerHTML = '<tr><td colspan="4" style="padding:24px;text-align:center;color:var(--gray-500);">No portfolios found.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="3" style="padding:24px;text-align:center;color:var(--gray-500);">No portfolios found.</td></tr>';
     return;
   }
 
   tbody.innerHTML = portfolios.map((portfolio) => {
     const portfolioId = toNumber(portfolio.portfolioId);
-    const customerId = toNumber(portfolio.customerId);
 
     return `
-      <tr>
+      <tr class="pm-portfolio-row" style="cursor:pointer;" title="View investments" onclick="openPortfolioInvestments(event, ${portfolioId})">
         <td>${escapeHtml(String(portfolioId || 0))}</td>
-        <td>${escapeHtml(String(customerId || 0))}</td>
         <td style="font-weight:600;">${escapeHtml(portfolio.portfolioName || 'N/A')}</td>
         <td style="text-align:center;">
           <div style="display:flex;gap:4px;justify-content:center;">
@@ -69,6 +67,19 @@ function renderPortfolioTable(portfolios) {
     `;
   }).join('');
 }
+
+function openPortfolioInvestments(event, portfolioId) {
+  if (event && event.target && event.target.closest('.pm-icon-btn')) {
+    return;
+  }
+
+  const id = toNumber(portfolioId);
+  if (!id) return;
+
+  window.location.href = `investments.html?portfolioId=${id}`;
+}
+
+window.openPortfolioInvestments = openPortfolioInvestments;
 
 function wireCreatePortfolioForm() {
   const form = document.getElementById('createPortfolioForm');
@@ -113,7 +124,6 @@ async function openPortfolioEdit(id) {
     console.log('Get portfolio by id API response:', portfolio);
 
     document.getElementById('editPortfolioId').value = portfolio.portfolioId || '';
-    document.getElementById('editCustomerId').value = portfolio.customerId || '';
     document.getElementById('editPortfolioName').value = portfolio.portfolioName || '';
     openModal('editModal');
   } catch (error) {

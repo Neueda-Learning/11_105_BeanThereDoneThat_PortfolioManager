@@ -56,6 +56,15 @@ public class PortfolioRepository {
         return results.isEmpty() ? Optional.empty() : Optional.of(results.get(0));
     }
 
+    public Optional<Portfolio> findByIdAndCustomerId(Integer id, Integer customerId) {
+        List<Portfolio> results = jdbcTemplate.query(
+                "SELECT * FROM Portfolio WHERE portfolio_id = ? AND customer_id = ?",
+                portfolioRowMapper,
+                id,
+                customerId);
+        return results.isEmpty() ? Optional.empty() : Optional.of(results.get(0));
+    }
+
     public List<Portfolio> findAll() {
         return jdbcTemplate.query("SELECT * FROM Portfolio", portfolioRowMapper);
     }
@@ -63,6 +72,14 @@ public class PortfolioRepository {
     public List<Portfolio> findByCustomerId(Integer customerId) {
         return jdbcTemplate.query(
                 "SELECT * FROM Portfolio WHERE customer_id = ?", portfolioRowMapper, customerId);
+    }
+
+    public int countByCustomerId(Integer customerId) {
+        Integer count = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM Portfolio WHERE customer_id = ?",
+                Integer.class,
+                customerId);
+        return count == null ? 0 : count;
     }
 
     public void deleteById(Integer id) {

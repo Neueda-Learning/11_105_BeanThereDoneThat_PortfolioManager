@@ -56,6 +56,13 @@ public class GlobalExceptionHandler {
         return Map.of("error", ex.getMessage());
     }
 
+    @ExceptionHandler(SecurityException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public Map<String, String> handleSecurityException(
+            SecurityException ex) {
+        return Map.of("error", ex.getMessage());
+    }
+
     @ExceptionHandler(YahooFinanceException.class)
     @ResponseStatus(HttpStatus.BAD_GATEWAY)
     public Map<String, String> handleYahooFinanceException(

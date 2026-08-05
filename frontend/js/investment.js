@@ -6,6 +6,28 @@
 let allInvestments = [];
 let filteredInvestments = [];
 let deleteTargetId = null;
+let currentDisplayCurrency = 'INR';
+let exchangeRates = {};
+let selectedPortfolioId = 0;
+
+const SUPPORTED_CURRENCIES = [
+  'INR',
+  'USD',
+  'EUR',
+  'GBP',
+  'JPY',
+  'AUD',
+  'CAD',
+  'CHF',
+  'SGD',
+  'AED',
+];
+
+const IDENTIFIER_MODES = {
+  SYMBOL: 'symbol',
+  SCHEME_CODE: 'schemeCode',
+  NONE: 'none',
+};
 
 document.addEventListener('DOMContentLoaded', () => {
   if (typeof requireAuth === 'function') {
@@ -25,23 +47,70 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function initInvestmentsPage() {
+  populateCurrencySelect('displayCurrency', currentDisplayCurrency);
   wireFilters();
+  wireImportExport();
   wireEditInvestmentModal();
   wireDeleteInvestmentModal();
-  await loadInvestments();
+  await initPortfolioContextAndLoadInvestments();
+}
+
+async function initPortfolioContextAndLoadInvestments() {
+  const portfolioFilter = document.getElementById('portfolioFilter');
+  if (!portfolioFilter) {
+    await loadInvestments();
+    return;
+  }
+
+  portfolioFilter.disabled = true;
+  portfolioFilter.innerHTML = '<option value="">Loading portfolios...</option>';
+
+  try {
+    const response = await PortfolioAPI.getAll();
+    const portfolios = Array.isArray(response) ? response : [];
+    populatePortfolioFilterOptions(portfolios);
+
+    if (!portfolios.length) {
+      selectedPortfolioId = 0;
+      clearInvestmentsState('No portfolios found. Create a portfolio to view investments.');
+      return;
+    }
+
+    const requestedPortfolioId = getPortfolioIdFromUrl();
+    const requestedExists = portfolios.some((portfolio) => toNumber(portfolio.portfolioId) === requestedPortfolioId);
+    selectedPortfolioId = requestedExists
+      ? requestedPortfolioId
+      : toNumber(portfolios[0].portfolioId);
+
+    portfolioFilter.value = String(selectedPortfolioId);
+    setPortfolioIdInUrl(selectedPortfolioId);
+    portfolioFilter.disabled = false;
+
+    await loadInvestments();
+  } catch (error) {
+    console.error('[Investments] Failed to load portfolios:', error);
+    portfolioFilter.innerHTML = '<option value="">Unable to load portfolios</option>';
+    clearInvestmentsState(error.message || 'Unable to load portfolios.', true);
+  }
 }
 
 async function loadInvestments() {
   const tbody = getInvestmentsTbody();
   if (!tbody) return;
 
-  tbody.innerHTML = `<tr><td colspan="12" style="padding:24px;text-align:center;color:var(--gray-500);"><span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Loading investments...</td></tr>`;
+  if (!selectedPortfolioId) {
+    clearInvestmentsState('Select a portfolio to view investments.');
+    return;
+  }
+
+  tbody.innerHTML = `<tr><td colspan="13" style="padding:24px;text-align:center;color:var(--gray-500);"><span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Loading investments...</td></tr>`;
 
   try {
-    const response = await InvestmentAPI.getAll();
+    const response = await InvestmentAPI.getByPortfolio(selectedPortfolioId);
     console.log('Investments API response:', response);
     allInvestments = Array.isArray(response) ? response : [];
     filteredInvestments = [...allInvestments];
+    await preloadDisplayRates(allInvestments);
 
     renderInvestmentsTable(filteredInvestments);
     renderSummaryCards(allInvestments);
@@ -56,14 +125,31 @@ async function loadInvestments() {
 }
 
 function wireFilters() {
+  const portfolioFilter = document.getElementById('portfolioFilter');
   const searchInput = document.getElementById('searchInput');
   const typeFilter = document.getElementById('typeFilter');
+  const displayCurrency = document.getElementById('displayCurrency');
 
+  if (portfolioFilter) {
+    portfolioFilter.addEventListener('change', async (event) => {
+      selectedPortfolioId = toNumber(event.target.value);
+      setPortfolioIdInUrl(selectedPortfolioId);
+      await loadInvestments();
+    });
+  }
   if (searchInput) {
     searchInput.addEventListener('input', applyFilters);
   }
   if (typeFilter) {
     typeFilter.addEventListener('change', applyFilters);
+  }
+  if (displayCurrency) {
+    displayCurrency.addEventListener('change', async (event) => {
+      currentDisplayCurrency = String(event.target.value || 'INR').trim().toUpperCase();
+      await preloadDisplayRates(allInvestments);
+      renderInvestmentsTable(filteredInvestments);
+      renderSummaryCards(allInvestments);
+    });
   }
 }
 
@@ -74,9 +160,10 @@ function applyFilters() {
   filteredInvestments = allInvestments.filter((item) => {
     const company = String(item.companyName || '').toLowerCase();
     const symbol = String(item.symbol || '').toLowerCase();
+    const schemeCode = String(item.schemeCode || '').toLowerCase();
     const assetType = String(item.assetType || '').toLowerCase();
 
-    const matchesQuery = !query || company.includes(query) || symbol.includes(query) || assetType.includes(query);
+    const matchesQuery = !query || company.includes(query) || symbol.includes(query) || schemeCode.includes(query) || assetType.includes(query);
     const matchesType = !type || assetType === type;
     return matchesQuery && matchesType;
   });
@@ -85,12 +172,52 @@ function applyFilters() {
   updateTableFooter(filteredInvestments.length, allInvestments.length);
 }
 
+function populatePortfolioFilterOptions(portfolios) {
+  const select = document.getElementById('portfolioFilter');
+  if (!select) return;
+
+  select.innerHTML = portfolios.map((portfolio) => {
+    const id = toNumber(portfolio.portfolioId);
+    const name = portfolio.portfolioName || `Portfolio ${id}`;
+    return `<option value="${escapeHtml(String(id))}">${escapeHtml(name)}</option>`;
+  }).join('');
+}
+
+function getPortfolioIdFromUrl() {
+  const params = new URLSearchParams(window.location.search || '');
+  return toNumber(params.get('portfolioId'));
+}
+
+function setPortfolioIdInUrl(portfolioId) {
+  const url = new URL(window.location.href);
+  if (portfolioId > 0) {
+    url.searchParams.set('portfolioId', String(portfolioId));
+  } else {
+    url.searchParams.delete('portfolioId');
+  }
+  window.history.replaceState({}, '', url.toString());
+}
+
+function clearInvestmentsState(message, isError = false) {
+  allInvestments = [];
+  filteredInvestments = [];
+  renderInvestmentsTable([]);
+  renderSummaryCards([]);
+  updateTableFooter(0, 0);
+
+  if (message) {
+    showInlineAlert(message, isError ? 'danger' : 'warning');
+  } else {
+    hideInlineAlert();
+  }
+}
+
 function renderInvestmentsTable(list) {
   const tbody = getInvestmentsTbody();
   if (!tbody) return;
 
   if (!list.length) {
-    tbody.innerHTML = '<tr><td colspan="12" style="padding:24px;text-align:center;color:var(--gray-500);">No investments found.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="13" style="padding:24px;text-align:center;color:var(--gray-500);">No investments found.</td></tr>';
     return;
   }
 
@@ -98,25 +225,28 @@ function renderInvestmentsTable(list) {
     const id = toNumber(investment.investmentId);
     const profitLoss = toNumber(investment.profitLoss);
     const plColor = profitLoss >= 0 ? 'var(--success)' : 'var(--danger)';
-    const plText = `${profitLoss > 0 ? '+' : ''}${formatINR(profitLoss)}`;
+    const originalCurrency = normalizeCurrencyCode(investment.currency);
+    const displayProfitLoss = convertForDisplay(investment.profitLoss, originalCurrency);
+    const plText = `${displayProfitLoss > 0 ? '+' : ''}${formatMoney(displayProfitLoss)}`;
 
     return `
       <tr>
         <td style="color:var(--gray-500);">${escapeHtml(String(id || '0'))}</td>
         <td style="font-weight:600;">${escapeHtml(investment.companyName || 'N/A')}</td>
-        <td>${escapeHtml(investment.symbol || 'N/A')}</td>
+        <td>${escapeHtml(investment.symbol || investment.schemeCode || 'N/A')}</td>
         <td>${escapeHtml(investment.exchange || 'N/A')}</td>
         <td>${escapeHtml(investment.currency || 'N/A')}</td>
         <td>${assetTypeBadge(investment.assetType || investment.customAssetType || 'N/A')}</td>
         <td>${formatNumber(investment.quantity)}</td>
-        <td>${formatINR(investment.purchasePrice)}</td>
-        <td style="font-weight:700;">${formatINR(investment.currentValue)}</td>
+        <td>${formatMoney(convertForDisplay(investment.purchasePrice, originalCurrency))}</td>
+        <td>${formatMoney(convertForDisplay(investment.currentPrice, originalCurrency))}</td>
+        <td style="font-weight:700;">${formatMoney(convertForDisplay(investment.currentValue, originalCurrency))}</td>
         <td style="color:${plColor};font-weight:600;">${plText}</td>
         <td style="color:var(--gray-500);font-size:.78rem;">${formatDate(investment.purchaseDate)}</td>
         <td style="text-align:center;">
           <div style="display:flex;gap:4px;justify-content:center;">
             <button class="pm-icon-btn" title="Edit" onclick="openInvestmentEdit(${id})"><i class="bi bi-pencil-fill"></i></button>
-            <button class="pm-icon-btn pm-icon-btn--del" title="Delete" onclick="openInvestmentDelete(${id}, '${escapeHtml(investment.companyName || investment.symbol || 'Investment')}')"><i class="bi bi-trash3-fill"></i></button>
+            <button class="pm-icon-btn pm-icon-btn--del" title="Delete" onclick="openInvestmentDelete(${id}, '${escapeHtml(investment.companyName || investment.symbol || investment.schemeCode || 'Investment')}')"><i class="bi bi-trash3-fill"></i></button>
           </div>
         </td>
       </tr>
@@ -126,17 +256,17 @@ function renderInvestmentsTable(list) {
 
 function renderSummaryCards(list) {
   const totalHoldings = list.length;
-  const totalInvested = sumBy(list, 'investedAmount');
-  const totalCurrentValue = sumBy(list, 'currentValue');
-  const totalPL = sumBy(list, 'profitLoss');
+  const totalInvested = sumConvertedBy(list, 'investedAmount');
+  const totalCurrentValue = sumConvertedBy(list, 'currentValue');
+  const totalPL = sumConvertedBy(list, 'profitLoss');
 
   setText('investHoldingsValue', String(totalHoldings));
-  setText('investInvestedValue', formatINR(totalInvested));
-  setText('investCurrentValue', formatINR(totalCurrentValue));
+  setText('investInvestedValue', formatMoney(totalInvested));
+  setText('investCurrentValue', formatMoney(totalCurrentValue));
 
   const plEl = document.getElementById('investPlValue');
   if (plEl) {
-    plEl.textContent = `${totalPL > 0 ? '+' : ''}${formatINR(totalPL)}`;
+    plEl.textContent = `${totalPL > 0 ? '+' : ''}${formatMoney(totalPL)}`;
     plEl.style.color = totalPL >= 0 ? 'var(--success)' : 'var(--danger)';
   }
 }
@@ -151,13 +281,6 @@ function wireEditInvestmentModal() {
   const editForm = document.getElementById('editInvestmentForm');
   if (!editForm) return;
 
-  const typeSelect = document.getElementById('editAssetType');
-  if (typeSelect) {
-    typeSelect.addEventListener('change', () => {
-      toggleCustomAssetType('editAssetType', 'editCustomAssetTypeWrap', 'editCustomAssetType');
-    });
-  }
-
   editForm.addEventListener('submit', async (event) => {
     event.preventDefault();
     hideModalAlert('editModalAlert');
@@ -167,7 +290,6 @@ function wireEditInvestmentModal() {
       quantity: toNumber(document.getElementById('editQuantity')?.value),
       purchasePrice: toNumber(document.getElementById('editPurchasePrice')?.value),
       purchaseDate: String(document.getElementById('editPurchaseDate')?.value || '').trim(),
-      assetType: String(document.getElementById('editAssetType')?.value || '').trim(),
       customAssetType: String(document.getElementById('editCustomAssetType')?.value || '').trim() || null,
     };
 
@@ -218,10 +340,86 @@ function wireDeleteInvestmentModal() {
   });
 }
 
+function wireImportExport() {
+  const exportButton = document.getElementById('exportInvestmentsBtn');
+  const templateButton = document.getElementById('downloadInvestmentTemplateBtn');
+  const importForm = document.getElementById('investmentImportForm');
+  const importModal = document.getElementById('investmentImportModal');
+
+  if (exportButton) {
+    exportButton.addEventListener('click', async () => {
+      setButtonLoading(exportButton, true, 'Exporting...');
+      try {
+        const blob = await InvestmentAPI.exportCsv();
+        triggerBrowserDownload(blob, `investments-customer-${getCustomerId() || 'data'}.csv`);
+        showPageAlert('Investment CSV export generated successfully.', 'success');
+      } catch (error) {
+        console.error('[Investments] Export failed:', error);
+        showPageAlert(error.message || 'Unable to export investments.', 'danger');
+      } finally {
+        setButtonLoading(exportButton, false, '<i class="bi bi-download"></i> Export');
+      }
+    });
+  }
+
+  if (templateButton) {
+    templateButton.addEventListener('click', async () => {
+      setButtonLoading(templateButton, true, 'Downloading...');
+      try {
+        const blob = await InvestmentAPI.downloadImportTemplate();
+        triggerBrowserDownload(blob, 'investment-import-template.csv');
+        showImportAlert('investmentImportAlert', 'Template downloaded successfully.', 'success');
+      } catch (error) {
+        console.error('[Investments] Template download failed:', error);
+        showImportAlert('investmentImportAlert', error.message || 'Unable to download the import template.', 'danger');
+      } finally {
+        setButtonLoading(templateButton, false, '<i class="bi bi-file-earmark-arrow-down"></i> Download Import Template');
+      }
+    });
+  }
+
+  if (importModal) {
+    importModal.addEventListener('show.bs.modal', resetInvestmentImportState);
+  }
+
+  if (importForm) {
+    importForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      hideImportAlert('investmentImportAlert');
+
+      const fileInput = document.getElementById('investmentImportFile');
+      const file = fileInput?.files?.[0] || null;
+      if (!file) {
+        showImportAlert('investmentImportAlert', 'Please choose a CSV or Excel file to import.', 'danger');
+        return;
+      }
+
+      const submitButton = document.getElementById('investmentImportSubmitBtn');
+      setButtonLoading(submitButton, true, 'Importing...');
+
+      try {
+        const summary = await InvestmentAPI.importFile(file);
+        renderInvestmentImportSummary(summary);
+        const alertType = (summary.failedCount || 0) > 0 ? 'warning' : 'success';
+        showImportAlert('investmentImportAlert', buildImportSummaryMessage(summary, 'investment', 'investments'), alertType);
+        showPageAlert(buildImportSummaryMessage(summary, 'investment', 'investments'), alertType === 'warning' ? 'warning' : 'success');
+        await initPortfolioContextAndLoadInvestments();
+      } catch (error) {
+        console.error('[Investments] Import failed:', error);
+        showImportAlert('investmentImportAlert', error.message || 'Unable to import investments.', 'danger');
+      } finally {
+        setButtonLoading(submitButton, false, '<i class="bi bi-upload"></i> Import');
+      }
+    });
+  }
+}
+
 async function initAddInvestmentPage() {
   await loadPortfolioOptions('portfolioId');
+  populateCurrencySelect('currency', 'INR');
   wireAddInvestmentPageForm();
   wireAddInvestmentCustomType();
+  syncAddInvestmentFormState();
 }
 
 function wireAddInvestmentPageForm() {
@@ -236,9 +434,11 @@ function wireAddInvestmentPageForm() {
     const payload = {
       portfolioId: toNumber(document.getElementById('portfolioId')?.value),
       symbol: String(document.getElementById('symbol')?.value || '').trim().toUpperCase(),
+      schemeCode: String(document.getElementById('schemeCode')?.value || '').trim(),
       companyName: String(document.getElementById('companyName')?.value || '').trim(),
       assetType: String(document.getElementById('assetType')?.value || '').trim(),
       customAssetType: String(document.getElementById('customAssetType')?.value || '').trim() || null,
+      currency: normalizeCurrencyCode(document.getElementById('currency')?.value),
       quantity: toNumber(document.getElementById('quantity')?.value),
       purchasePrice: toNumber(document.getElementById('purchasePrice')?.value),
       purchaseDate: String(document.getElementById('purchaseDate')?.value || '').trim(),
@@ -246,7 +446,7 @@ function wireAddInvestmentPageForm() {
     };
 
     if (!isValidCreatePayload(payload)) {
-      showFormAlert('Please fill all required fields (including Symbol).', 'danger');
+      showFormAlert('Please fill all required fields for the selected asset type.', 'danger');
       return;
     }
 
@@ -256,9 +456,9 @@ function wireAddInvestmentPageForm() {
       console.log('Add page create investment API response:', created);
       showFormAlert('Investment added successfully.', 'success');
       form.reset();
-      toggleCustomAssetType('assetType', 'customTypeWrap', 'customAssetType');
+      syncAddInvestmentFormState();
       setTimeout(() => {
-        window.location.href = 'investments.html';
+        window.location.href = `investments.html?portfolioId=${payload.portfolioId}`;
       }, 1000);
     } catch (error) {
       console.error('[Add Investment] Create failed:', error);
@@ -271,10 +471,12 @@ function wireAddInvestmentPageForm() {
 
 function wireAddInvestmentCustomType() {
   const select = document.getElementById('assetType');
+  const currencySelect = document.getElementById('currency');
   if (!select) return;
-  select.addEventListener('change', () => {
-    toggleCustomAssetType('assetType', 'customTypeWrap', 'customAssetType');
-  });
+  select.addEventListener('change', syncAddInvestmentFormState);
+  if (currencySelect) {
+    currencySelect.addEventListener('change', updateCreateCurrencyHints);
+  }
 }
 
 async function loadPortfolioOptions(selectId) {
@@ -322,12 +524,14 @@ async function openInvestmentEdit(id) {
 
     document.getElementById('editInvestmentId').value = investment.investmentId || '';
     document.getElementById('editCompanyName').value = investment.companyName || '';
-    document.getElementById('editSymbol').value = investment.symbol || '';
+    document.getElementById('editSymbol').value = investment.symbol || investment.schemeCode || '';
     document.getElementById('editAssetType').value = investment.assetType || '';
     document.getElementById('editCustomAssetType').value = investment.customAssetType || '';
     document.getElementById('editQuantity').value = investment.quantity || '';
     document.getElementById('editPurchasePrice').value = investment.purchasePrice || '';
     document.getElementById('editPurchaseDate').value = formatInputDate(investment.purchaseDate);
+    setText('editIdentifierLabel', getIdentifierLabel(investment.assetType));
+    setCurrencyHint('editPurchasePriceCurrencyHint', investment.currency);
     toggleCustomAssetType('editAssetType', 'editCustomAssetTypeWrap', 'editCustomAssetType');
 
     openModal('editModal');
@@ -403,11 +607,73 @@ function hideFormAlert() {
   if (alert) alert.classList.add('d-none');
 }
 
+function resetInvestmentImportState() {
+  hideImportAlert('investmentImportAlert');
+  const summary = document.getElementById('investmentImportSummary');
+  if (summary) {
+    summary.classList.add('d-none');
+    summary.innerHTML = '';
+  }
+
+  const fileInput = document.getElementById('investmentImportFile');
+  if (fileInput) {
+    fileInput.value = '';
+  }
+}
+
+function renderInvestmentImportSummary(summary) {
+  const container = document.getElementById('investmentImportSummary');
+  if (!container) return;
+
+  const failures = Array.isArray(summary?.failures) ? summary.failures : [];
+  const rowsHtml = failures.length
+    ? `<div class="alert alert-warning mb-0"><div style="font-weight:600;margin-bottom:6px;">Failed rows</div><ul class="mb-0 ps-3">${failures.map((failure) => `<li>Row ${escapeHtml(String(failure.rowNumber || ''))}: ${escapeHtml(failure.reason || 'Unable to import this row.')}</li>`).join('')}</ul></div>`
+    : '<div class="alert alert-success mb-0">No row-level validation errors were found.</div>';
+
+  container.classList.remove('d-none');
+  container.innerHTML = `
+    <div class="pm-card" style="border:1px solid var(--gray-200);box-shadow:none;">
+      <div class="pm-card__bd" style="padding:12px 14px;">
+        <div style="font-size:.82rem;font-weight:700;margin-bottom:8px;">Import Summary</div>
+        <div style="font-size:.8rem;color:var(--gray-600);margin-bottom:10px;">Successful imports: ${escapeHtml(String(summary?.successfulCount || 0))} | Failed rows: ${escapeHtml(String(summary?.failedCount || 0))}</div>
+        ${rowsHtml}
+      </div>
+    </div>`;
+}
+
+function buildImportSummaryMessage(summary, singularLabel, pluralLabel) {
+  const successful = Number(summary?.successfulCount || 0);
+  const failed = Number(summary?.failedCount || 0);
+  const successLabel = successful === 1 ? singularLabel : pluralLabel;
+  if (failed > 0) {
+    return `Imported ${successful} ${successLabel}. ${failed} row${failed === 1 ? '' : 's'} failed validation.`;
+  }
+  return `Imported ${successful} ${successLabel} successfully.`;
+}
+
+function showImportAlert(elementId, message, type) {
+  const alert = document.getElementById(elementId);
+  if (!alert) return;
+  alert.className = `alert alert-${type}`;
+  alert.textContent = message;
+  alert.classList.remove('d-none');
+}
+
+function hideImportAlert(elementId) {
+  const alert = document.getElementById(elementId);
+  if (alert) {
+    alert.classList.add('d-none');
+  }
+}
+
 function isValidCreatePayload(payload) {
+  const identifierMode = getIdentifierMode(payload.assetType);
   return payload.portfolioId > 0
-    && !!payload.symbol
     && !!payload.companyName
     && !!payload.assetType
+    && !!payload.currency
+    && (identifierMode !== IDENTIFIER_MODES.SYMBOL || !!payload.symbol)
+    && (identifierMode !== IDENTIFIER_MODES.SCHEME_CODE || !!payload.schemeCode)
     && payload.quantity > 0
     && payload.purchasePrice > 0
     && !!payload.purchaseDate;
@@ -442,7 +708,7 @@ function setButtonLoading(button, loading, loadingText) {
 }
 
 function renderValueWithZero(value) {
-  return toNumber(value) === 0 ? '₹0' : formatINR(value);
+  return toNumber(value) === 0 ? formatMoney(0) : formatMoney(value);
 }
 
 function setText(id, value) {
@@ -452,6 +718,13 @@ function setText(id, value) {
 
 function sumBy(list, key) {
   return (list || []).reduce((sum, item) => sum + toNumber(item && item[key]), 0);
+}
+
+function sumConvertedBy(list, key) {
+  return (list || []).reduce((sum, item) => {
+    const currency = normalizeCurrencyCode(item && item.currency);
+    return sum + convertForDisplay(item && item[key], currency);
+  }, 0);
 }
 
 function toNumber(value) {
@@ -468,11 +741,14 @@ function toNullablePositiveNumber(value) {
   return Number.isFinite(num) && num > 0 ? num : null;
 }
 
-function formatINR(value) {
+function formatMoney(value, currency = currentDisplayCurrency) {
   const number = toNumber(value);
-  return number === 0
-    ? '₹0'
-    : `₹${number.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return new Intl.NumberFormat(getCurrencyLocale(currency), {
+    style: 'currency',
+    currency: currency || 'INR',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(number);
 }
 
 function formatNumber(value) {
@@ -502,6 +778,133 @@ function assetTypeBadge(type) {
   return `<span class="pm-badge pm-badge--blue">${safeType}</span>`;
 }
 
+function populateCurrencySelect(selectId, selectedCurrency) {
+  const select = document.getElementById(selectId);
+  if (!select) return;
+
+  const normalizedSelected = normalizeCurrencyCode(selectedCurrency) || 'INR';
+  select.innerHTML = SUPPORTED_CURRENCIES.map((currency) => (
+    `<option value="${currency}"${currency === normalizedSelected ? ' selected' : ''}>${currency}</option>`
+  )).join('');
+}
+
+function convertForDisplay(value, sourceCurrency) {
+  const amount = toNumber(value);
+  const fromCurrency = normalizeCurrencyCode(sourceCurrency) || 'INR';
+  const toCurrency = normalizeCurrencyCode(currentDisplayCurrency) || 'INR';
+
+  if (!amount || fromCurrency === toCurrency) {
+    return amount;
+  }
+
+  const rate = getCachedRate(fromCurrency, toCurrency);
+  if (!rate || rate <= 0) {
+    return amount;
+  }
+
+  return amount * rate;
+}
+
+async function preloadDisplayRates(list) {
+  const targetCurrency = normalizeCurrencyCode(currentDisplayCurrency) || 'INR';
+  const sourceCurrencies = [...new Set((list || [])
+    .map((item) => normalizeCurrencyCode(item && item.currency))
+    .filter(Boolean))];
+
+  const lookups = sourceCurrencies
+    .filter((fromCurrency) => fromCurrency !== targetCurrency)
+    .map(async (fromCurrency) => {
+      const cacheKey = `${fromCurrency}->${targetCurrency}`;
+      if (exchangeRates[cacheKey]) {
+        return;
+      }
+
+      try {
+        const response = await InvestmentAPI.getExchangeRate(fromCurrency, targetCurrency);
+        const rate = toNumber(response && response.rate);
+        if (rate > 0) {
+          exchangeRates[cacheKey] = rate;
+        }
+      } catch (error) {
+        console.warn(`[Investments] Failed to load exchange rate ${cacheKey}:`, error);
+      }
+    });
+
+  await Promise.all(lookups);
+}
+
+function getCachedRate(fromCurrency, toCurrency) {
+  if (fromCurrency === toCurrency) {
+    return 1;
+  }
+  return toNumber(exchangeRates[`${fromCurrency}->${toCurrency}`]);
+}
+
+function getCurrencyLocale(currency) {
+  return currency === 'INR' ? 'en-IN' : 'en-US';
+}
+
+function normalizeCurrencyCode(currency) {
+  const normalized = String(currency || '').trim().toUpperCase();
+  return SUPPORTED_CURRENCIES.includes(normalized) ? normalized : normalized || null;
+}
+
+function syncAddInvestmentFormState() {
+  toggleCustomAssetType('assetType', 'customTypeWrap', 'customAssetType');
+  syncIdentifierFields();
+  updateCreateCurrencyHints();
+}
+
+function syncIdentifierFields() {
+  const assetType = document.getElementById('assetType')?.value;
+  const mode = getIdentifierMode(assetType);
+  const symbolWrap = document.getElementById('symbolWrap');
+  const symbolInput = document.getElementById('symbol');
+  const schemeCodeWrap = document.getElementById('schemeCodeWrap');
+  const schemeCodeInput = document.getElementById('schemeCode');
+
+  if (!symbolWrap || !symbolInput || !schemeCodeWrap || !schemeCodeInput) return;
+
+  symbolWrap.style.display = mode === IDENTIFIER_MODES.SYMBOL ? '' : 'none';
+  schemeCodeWrap.style.display = mode === IDENTIFIER_MODES.SCHEME_CODE ? '' : 'none';
+  symbolInput.required = mode === IDENTIFIER_MODES.SYMBOL;
+  schemeCodeInput.required = mode === IDENTIFIER_MODES.SCHEME_CODE;
+
+  if (mode !== IDENTIFIER_MODES.SYMBOL) {
+    symbolInput.value = '';
+  }
+  if (mode !== IDENTIFIER_MODES.SCHEME_CODE) {
+    schemeCodeInput.value = '';
+  }
+}
+
+function updateCreateCurrencyHints() {
+  const currency = normalizeCurrencyCode(document.getElementById('currency')?.value) || 'INR';
+  setCurrencyHint('purchasePriceCurrencyHint', currency);
+  setCurrencyHint('currentPriceCurrencyHint', currency);
+}
+
+function setCurrencyHint(elementId, currency) {
+  const hint = document.getElementById(elementId);
+  if (hint) {
+    hint.textContent = `(${normalizeCurrencyCode(currency) || 'INR'})`;
+  }
+}
+
+function getIdentifierMode(assetType) {
+  const normalizedType = String(assetType || '').trim().toLowerCase();
+  if (normalizedType === 'mutual fund') return IDENTIFIER_MODES.SCHEME_CODE;
+  if (normalizedType === 'gold') return IDENTIFIER_MODES.NONE;
+  return IDENTIFIER_MODES.SYMBOL;
+}
+
+function getIdentifierLabel(assetType) {
+  const mode = getIdentifierMode(assetType);
+  if (mode === IDENTIFIER_MODES.SCHEME_CODE) return 'Scheme Code';
+  if (mode === IDENTIFIER_MODES.NONE) return 'Identifier';
+  return 'Symbol';
+}
+
 function escapeHtml(value) {
   return String(value)
     .replace(/&/g, '&amp;')
@@ -509,4 +912,15 @@ function escapeHtml(value) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+function triggerBrowserDownload(blob, fileName) {
+  const url = window.URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = fileName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.URL.revokeObjectURL(url);
 }

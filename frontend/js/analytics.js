@@ -1,5 +1,5 @@
 /**
- * analytics.js — Professional trading analytics dashboard
+ * analytics.js — Backend-driven analytics dashboard
  */
 
 let performanceTrendChartRef = null;
@@ -12,6 +12,15 @@ let sparkRoiRef = null;
 let sparkProfitLossRef = null;
 let sparkRiskRef = null;
 
+const analyticsState = {
+  portfolios: [],
+  investments: [],
+  transactions: [],
+  selectedPortfolioId: null,
+  mode: 'portfolio',
+  currentRisk: null,
+};
+
 document.addEventListener('DOMContentLoaded', () => {
   if (typeof requireAuth === 'function') {
     requireAuth();
@@ -21,6 +30,10 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   loadAnalyticsDashboard();
+});
+
+document.addEventListener('pm:theme-change', () => {
+  rerenderAnalyticsChartsForTheme();
 });
 
 async function loadAnalyticsDashboard() {
@@ -33,84 +46,258 @@ async function loadAnalyticsDashboard() {
       PortfolioAPI.getAll(),
     ]);
 
-    const data = {
-      investments: Array.isArray(investmentsResponse) ? investmentsResponse : [],
-      transactions: Array.isArray(transactionsResponse) ? transactionsResponse : [],
-      portfolios: Array.isArray(portfoliosResponse) ? portfoliosResponse : [],
-    };
+    analyticsState.investments = Array.isArray(investmentsResponse) ? investmentsResponse : [];
+    analyticsState.transactions = Array.isArray(transactionsResponse) ? transactionsResponse : [];
+    analyticsState.portfolios = Array.isArray(portfoliosResponse) ? portfoliosResponse : [];
 
-    console.log('Analytics Data', data);
-
-    const timeline = buildTimelineData(data.investments, data.transactions);
-    const riskData = calculateRiskAnalysis(data.investments, data.portfolios);
-
-    renderKpiCards(data.investments, riskData, timeline);
+    const timeline = buildTimelineData(analyticsState.investments, analyticsState.transactions);
     renderPortfolioPerformanceTimeline(timeline);
     renderProfitLossTrend(timeline);
     renderAssetGrowthTimeline(timeline.assetLines);
     renderTransactionActivityTrend(timeline.transactionTrend);
+    renderInsights(analyticsState.investments, analyticsState.portfolios);
 
-    renderRiskSection(riskData);
-    renderInsights(data.investments, data.portfolios, riskData);
+    wireAnalyticsControls();
+    initializePortfolioSelector();
 
-    console.log('Risk Analysis', riskData);
+    if (analyticsState.portfolios.length === 1) {
+      analyticsState.selectedPortfolioId = toNumber(analyticsState.portfolios[0].portfolioId);
+      await analyzeSelectedPortfolio();
+      return;
+    }
+
+    if (analyticsState.portfolios.length > 1) {
+      analyticsState.selectedPortfolioId = toNumber(analyticsState.portfolios[0].portfolioId);
+      await analyzeSelectedPortfolio();
+      return;
+    }
+
+    showAnalyticsError('Create a portfolio with investments to run risk analysis.');
+    renderBackendRiskData(null, 'portfolio');
   } catch (error) {
     console.error('[Analytics] Failed to load analytics data:', error);
     showAnalyticsError(error.message || 'Unable to load analytics data.');
 
     const emptyTimeline = buildTimelineData([], []);
-    const emptyRisk = calculateRiskAnalysis([], []);
-
-    renderKpiCards([], emptyRisk, emptyTimeline);
     renderPortfolioPerformanceTimeline(emptyTimeline);
     renderProfitLossTrend(emptyTimeline);
     renderAssetGrowthTimeline(emptyTimeline.assetLines);
     renderTransactionActivityTrend(emptyTimeline.transactionTrend);
-
-    renderRiskSection(emptyRisk);
-    renderInsights([], [], emptyRisk);
-
-    console.log('Risk Analysis', emptyRisk);
+    renderInsights([], []);
+    renderBackendRiskData(null, analyticsState.mode);
   }
+}
+
+function wireAnalyticsControls() {
+  const portfolioBtn = document.getElementById('analyzePortfolioBtn');
+  const assetBtn = document.getElementById('analyzeAssetBtn');
+  const assetRunBtn = document.getElementById('runAssetAnalysisBtn');
+  const portfolioSelect = document.getElementById('analyticsPortfolioSelect');
+  const symbolInput = document.getElementById('assetSymbolInput');
+
+  if (portfolioBtn) {
+    portfolioBtn.addEventListener('click', async () => {
+      switchAnalysisMode('portfolio');
+      await analyzeSelectedPortfolio();
+    });
+  }
+
+  if (assetBtn) {
+    assetBtn.addEventListener('click', () => {
+      switchAnalysisMode('asset');
+    });
+  }
+
+  if (assetRunBtn) {
+    assetRunBtn.addEventListener('click', async () => {
+      await analyzeIndividualAsset();
+    });
+  }
+
+  if (portfolioSelect) {
+    portfolioSelect.addEventListener('change', async (event) => {
+      analyticsState.selectedPortfolioId = toNumber(event.target.value);
+      if (analyticsState.mode === 'portfolio') {
+        await analyzeSelectedPortfolio();
+      }
+    });
+  }
+
+  if (symbolInput) {
+    symbolInput.addEventListener('keydown', async (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        await analyzeIndividualAsset();
+      }
+    });
+  }
+}
+
+function initializePortfolioSelector() {
+  const group = document.getElementById('analyticsPortfolioGroup');
+  const select = document.getElementById('analyticsPortfolioSelect');
+
+  if (!group || !select) return;
+
+  if (analyticsState.portfolios.length > 1) {
+    group.style.display = 'block';
+    select.innerHTML = analyticsState.portfolios
+      .map((portfolio) => {
+        const portfolioId = toNumber(portfolio.portfolioId);
+        const name = portfolio.portfolioName || `Portfolio ${portfolioId}`;
+        return `<option value="${escapeHtml(String(portfolioId))}">${escapeHtml(name)}</option>`;
+      })
+      .join('');
+  } else {
+    group.style.display = 'none';
+    select.innerHTML = '';
+  }
+}
+
+function switchAnalysisMode(mode) {
+  analyticsState.mode = mode === 'asset' ? 'asset' : 'portfolio';
+
+  const portfolioBtn = document.getElementById('analyzePortfolioBtn');
+  const assetBtn = document.getElementById('analyzeAssetBtn');
+  const assetPanel = document.getElementById('assetAnalyzePanel');
+  const assetMeta = document.getElementById('assetMetaSummary');
+
+  if (portfolioBtn) {
+    portfolioBtn.classList.toggle('btn-primary', analyticsState.mode === 'portfolio');
+    portfolioBtn.classList.toggle('btn-outline-primary', analyticsState.mode !== 'portfolio');
+  }
+
+  if (assetBtn) {
+    assetBtn.classList.toggle('btn-primary', analyticsState.mode === 'asset');
+    assetBtn.classList.toggle('btn-outline-primary', analyticsState.mode !== 'asset');
+  }
+
+  if (assetPanel) {
+    assetPanel.style.display = analyticsState.mode === 'asset' ? 'flex' : 'none';
+  }
+
+  if (assetMeta && analyticsState.mode !== 'asset') {
+    assetMeta.style.display = 'none';
+  }
+
+  setText('riskAnalysisModeValue', analyticsState.mode === 'asset' ? 'INDIVIDUAL ASSET' : 'PORTFOLIO');
+}
+
+async function analyzeSelectedPortfolio() {
+  if (!analyticsState.selectedPortfolioId) {
+    renderBackendRiskData(null, 'portfolio');
+    return;
+  }
+
+  try {
+    const response = await RiskAnalysisAPI.analyzePortfolio(analyticsState.selectedPortfolioId);
+    const risk = normalizeRiskResponse(response);
+    analyticsState.currentRisk = risk;
+    renderBackendRiskData(risk, 'portfolio');
+  } catch (error) {
+    console.error('[Analytics] Portfolio risk analysis failed:', error);
+    showAnalyticsError(error.message || 'Unable to analyze portfolio risk.');
+    renderBackendRiskData(null, 'portfolio');
+  }
+}
+
+async function analyzeIndividualAsset() {
+  const symbolInput = document.getElementById('assetSymbolInput');
+  const rawSymbol = symbolInput ? String(symbolInput.value || '').trim() : '';
+
+  if (!rawSymbol) {
+    showAnalyticsError('Enter a ticker symbol to analyze an individual asset.');
+    return;
+  }
+
+  try {
+    const response = await RiskAnalysisAPI.analyzeStock(rawSymbol, 'STOCK');
+    const risk = normalizeRiskResponse(response);
+    analyticsState.currentRisk = risk;
+    renderBackendRiskData(risk, 'asset');
+  } catch (error) {
+    console.error('[Analytics] Asset risk analysis failed:', error);
+    showAnalyticsError('Unable to fetch live market data. Using manually entered price.');
+    renderBackendRiskData(null, 'asset');
+  }
+}
+
+function normalizeRiskResponse(payload) {
+  if (!payload || typeof payload !== 'object') {
+    return null;
+  }
+
+  return {
+    symbol: payload.symbol || null,
+    exchange: payload.exchange || null,
+    currency: payload.currency || null,
+    portfolioId: toNumber(payload.portfolioId),
+    portfolioValue: toNumber(payload.portfolioValue),
+    annualizedVolatility: toNumber(payload.annualizedVolatility),
+    maximumDrawdown: toNumber(payload.maximumDrawdown),
+    averageAnnualReturn: toNumber(payload.averageAnnualReturn),
+    sharpeRatio: toNumber(payload.sharpeRatio),
+    riskLevel: payload.riskLevel || 'LOW',
+  };
 }
 
 function setInitialKpiState() {
   setText('kpiTotalValue', '₹0');
   setText('kpiRoi', '0.00%');
-  setText('kpiProfitLoss', '₹0');
-  setText('kpiRiskScore', '0');
+  setText('kpiProfitLoss', '0.00%');
+  setText('kpiRiskScore', '0.0000');
 
-  setTrend('kpiTotalValueTrend', 'flat', 'Stable');
-  setTrend('kpiRoiTrend', 'flat', 'Stable');
-  setTrend('kpiProfitLossTrend', 'flat', 'Stable');
-  setTrend('kpiRiskScoreTrend', 'flat', 'Low Risk');
+  setTrend('kpiTotalValueTrend', 'flat', 'Portfolio Value');
+  setTrend('kpiRoiTrend', 'flat', 'Average Return');
+  setTrend('kpiProfitLossTrend', 'flat', 'Annualized Volatility');
+  setTrend('kpiRiskScoreTrend', 'flat', 'LOW');
 }
 
-function renderKpiCards(investments, riskData, timeline) {
-  const totalInvested = sumBy(investments, 'investedAmount');
-  const currentValue = sumBy(investments, 'currentValue');
-  const profitLoss = sumBy(investments, 'profitLoss');
-  const roi = totalInvested > 0 ? (profitLoss / totalInvested) * 100 : 0;
+function renderBackendRiskData(riskData, mode) {
+  const isAssetMode = mode === 'asset';
+  const risk = riskData || {
+    symbol: null,
+    exchange: null,
+    currency: null,
+    portfolioValue: 0,
+    annualizedVolatility: 0,
+    maximumDrawdown: 0,
+    averageAnnualReturn: 0,
+    sharpeRatio: 0,
+    riskLevel: 'LOW',
+  };
 
-  animateCount('kpiTotalValue', totalInvested, formatINR);
-  animateCount('kpiProfitLoss', profitLoss, (value) => `${value > 0 ? '+' : ''}${formatINR(value)}`);
-  animateCount('kpiRoi', roi, (value) => `${value.toFixed(2)}%`);
-  animateCount('kpiRiskScore', riskData.riskScore, (value) => String(Math.round(value)));
+  const timeline = buildTimelineData(analyticsState.investments, analyticsState.transactions);
+  renderKpiCards(risk, timeline, isAssetMode);
 
-  const plEl = document.getElementById('kpiProfitLoss');
-  if (plEl) {
-    plEl.style.color = profitLoss >= 0 ? 'var(--success)' : 'var(--danger)';
+  setText('riskPortfolioValue', isAssetMode ? 'N/A' : formatINR(risk.portfolioValue));
+  setText('riskAverageReturn', formatPercent(risk.averageAnnualReturn));
+  setText('riskAnnualizedVolatility', formatPercent(risk.annualizedVolatility));
+  setText('riskMaximumDrawdown', formatPercent(risk.maximumDrawdown));
+  setText('riskSharpeRatio', formatDecimal(risk.sharpeRatio, 4));
+  setText('riskLevelValue', risk.riskLevel || 'LOW');
+  setText('riskAnalysisModeValue', isAssetMode ? 'INDIVIDUAL ASSET' : 'PORTFOLIO');
+
+  const assetMeta = document.getElementById('assetMetaSummary');
+  if (assetMeta) {
+    assetMeta.style.display = isAssetMode ? 'block' : 'none';
   }
 
-  const roiEl = document.getElementById('kpiRoi');
-  if (roiEl) {
-    roiEl.style.color = roi >= 0 ? 'var(--success)' : 'var(--danger)';
-  }
+  setText('assetSymbolValue', risk.symbol || 'N/A');
+  setText('assetExchangeValue', risk.exchange || 'N/A');
+  setText('assetCurrencyValue', risk.currency || 'N/A');
+}
 
-  setTrend('kpiTotalValueTrend', currentValue >= totalInvested ? 'up' : 'down', currentValue >= totalInvested ? 'Portfolio above cost' : 'Portfolio below cost');
-  setTrend('kpiRoiTrend', roi > 0 ? 'up' : roi < 0 ? 'down' : 'flat', `${roi.toFixed(2)}% return`);
-  setTrend('kpiProfitLossTrend', profitLoss > 0 ? 'up' : profitLoss < 0 ? 'down' : 'flat', profitLoss >= 0 ? 'Positive momentum' : 'Drawdown active');
-  setTrend('kpiRiskScoreTrend', riskData.riskScore > 60 ? 'down' : riskData.riskScore > 30 ? 'flat' : 'up', riskData.riskCategory);
+function renderKpiCards(riskData, timeline, isAssetMode) {
+  animateCount('kpiTotalValue', isAssetMode ? 0 : riskData.portfolioValue, formatINR);
+  animateCount('kpiRoi', riskData.averageAnnualReturn, (value) => `${value.toFixed(2)}%`);
+  animateCount('kpiProfitLoss', riskData.annualizedVolatility, (value) => `${value.toFixed(2)}%`);
+  animateCount('kpiRiskScore', riskData.sharpeRatio, (value) => value.toFixed(4));
+
+  setTrend('kpiTotalValueTrend', 'flat', isAssetMode ? 'Individual asset mode' : 'Portfolio level');
+  setTrend('kpiRoiTrend', riskData.averageAnnualReturn >= 0 ? 'up' : 'down', `${riskData.averageAnnualReturn.toFixed(2)}% return`);
+  setTrend('kpiProfitLossTrend', riskData.annualizedVolatility >= 30 ? 'down' : 'up', `${riskData.annualizedVolatility.toFixed(2)}% volatility`);
+  setTrend('kpiRiskScoreTrend', riskData.riskLevel === 'LOW' ? 'up' : 'flat', riskData.riskLevel || 'LOW');
 
   renderSparklines(timeline, riskData);
 }
@@ -118,6 +305,8 @@ function renderKpiCards(investments, riskData, timeline) {
 function renderPortfolioPerformanceTimeline(timeline) {
   const ctx = getCanvasContext('performanceTrendChart');
   if (!ctx || typeof Chart === 'undefined') return;
+
+  const theme = getChartTheme();
 
   destroyChart(performanceTrendChartRef);
   performanceTrendChartRef = new Chart(ctx, {
@@ -149,13 +338,15 @@ function renderPortfolioPerformanceTimeline(timeline) {
         },
       ],
     },
-    options: buildCommonChartOptions(),
+    options: buildCommonChartOptions(theme),
   });
 }
 
 function renderProfitLossTrend(timeline) {
   const ctx = getCanvasContext('profitLossTrendChart');
   if (!ctx || typeof Chart === 'undefined') return;
+
+  const theme = getChartTheme();
 
   const gradient = ctx.createLinearGradient(0, 0, 0, 260);
   gradient.addColorStop(0, 'rgba(46, 125, 50, 0.35)');
@@ -187,13 +378,15 @@ function renderProfitLossTrend(timeline) {
         },
       ],
     },
-    options: buildCommonChartOptions(),
+    options: buildCommonChartOptions(theme),
   });
 }
 
 function renderAssetGrowthTimeline(assetLines) {
   const ctx = getCanvasContext('assetGrowthTimelineChart');
   if (!ctx || typeof Chart === 'undefined') return;
+
+  const theme = getChartTheme();
 
   destroyChart(assetGrowthTimelineChartRef);
   assetGrowthTimelineChartRef = new Chart(ctx, {
@@ -202,13 +395,15 @@ function renderAssetGrowthTimeline(assetLines) {
       labels: assetLines.labels,
       datasets: assetLines.datasets,
     },
-    options: buildCommonChartOptions(),
+    options: buildCommonChartOptions(theme),
   });
 }
 
 function renderTransactionActivityTrend(trendData) {
   const ctx = getCanvasContext('transactionActivityTrendChart');
   if (!ctx || typeof Chart === 'undefined') return;
+
+  const theme = getChartTheme();
 
   destroyChart(transactionActivityTrendChartRef);
   transactionActivityTrendChartRef = new Chart(ctx, {
@@ -240,7 +435,7 @@ function renderTransactionActivityTrend(trendData) {
         },
       ],
     },
-    options: buildCommonChartOptions(true),
+    options: buildCommonChartOptions(theme, true),
   });
 }
 
@@ -255,10 +450,11 @@ function renderSparklines(timeline, riskData) {
     sparkProfitLossRef = ref;
   });
 
+  const riskBase = toNumber(riskData && riskData.annualizedVolatility);
   const riskSeries = timeline.labels.map((_, index) => {
     if (!timeline.labels.length) return 0;
     const ratio = (index + 1) / timeline.labels.length;
-    return Math.round(riskData.riskScore * ratio);
+    return Number((riskBase * ratio).toFixed(2));
   });
 
   renderSparkline('sparkRisk', sparkRiskRef, riskSeries, '#FF8F00', (ref) => {
@@ -269,6 +465,8 @@ function renderSparklines(timeline, riskData) {
 function renderSparkline(canvasId, existingRef, data, color, setRef) {
   const ctx = getCanvasContext(canvasId);
   if (!ctx || typeof Chart === 'undefined') return;
+
+  const theme = getChartTheme();
 
   destroyChart(existingRef);
   const safeData = data && data.length ? data : [0, 0, 0, 0];
@@ -297,7 +495,17 @@ function renderSparkline(canvasId, existingRef, data, color, setRef) {
       responsive: true,
       maintainAspectRatio: false,
       animation: { duration: 2000 },
-      plugins: { legend: { display: false }, tooltip: { enabled: true } },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          enabled: true,
+          backgroundColor: theme.tooltipBackground,
+          titleColor: theme.tooltipTitle,
+          bodyColor: theme.tooltipBody,
+          borderColor: theme.tooltipBorder,
+          borderWidth: 1,
+        },
+      },
       scales: {
         x: { display: false },
         y: { display: false },
@@ -308,7 +516,9 @@ function renderSparkline(canvasId, existingRef, data, color, setRef) {
   setRef(chart);
 }
 
-function buildCommonChartOptions(integerYAxis) {
+function buildCommonChartOptions(theme, integerYAxis) {
+  const resolvedTheme = theme || getChartTheme();
+
   return {
     responsive: true,
     maintainAspectRatio: false,
@@ -323,112 +533,83 @@ function buildCommonChartOptions(integerYAxis) {
     plugins: {
       legend: {
         position: 'bottom',
-        labels: { usePointStyle: true, boxWidth: 8 },
+        labels: {
+          usePointStyle: true,
+          boxWidth: 8,
+          color: resolvedTheme.label,
+        },
       },
       tooltip: {
         enabled: true,
-        backgroundColor: 'rgba(17,24,39,0.92)',
-        titleColor: '#ffffff',
-        bodyColor: '#e5e7eb',
-        borderColor: 'rgba(255,255,255,0.15)',
+        backgroundColor: resolvedTheme.tooltipBackground,
+        titleColor: resolvedTheme.tooltipTitle,
+        bodyColor: resolvedTheme.tooltipBody,
+        borderColor: resolvedTheme.tooltipBorder,
         borderWidth: 1,
       },
     },
     scales: {
       x: {
-        grid: { color: 'rgba(148,163,184,0.15)' },
+        grid: { color: resolvedTheme.grid },
+        ticks: { color: resolvedTheme.tick },
       },
       y: {
         beginAtZero: true,
-        grid: { color: 'rgba(148,163,184,0.15)' },
-        ticks: integerYAxis ? { precision: 0 } : {},
+        grid: { color: resolvedTheme.grid },
+        ticks: integerYAxis
+          ? { precision: 0, color: resolvedTheme.tick }
+          : { color: resolvedTheme.tick },
       },
     },
   };
 }
 
-function calculateRiskAnalysis(investments, portfolios) {
-  if (!investments.length) {
-    return {
-      riskScore: 0,
-      riskCategory: 'Low Risk',
-      diversificationScore: 0,
-      portfolioHealthScore: 0,
-      diversification: 'No assets',
-      topRiskAsset: 'N/A',
-      recommendation: 'Portfolio is well diversified',
-      mostDiversifiedPortfolio: portfolios && portfolios.length ? (portfolios[0].portfolioName || `Portfolio ${portfolios[0].portfolioId}`) : 'N/A',
-    };
-  }
-
-  const totalCurrentValue = sumBy(investments, 'currentValue');
-  const totalInvested = sumBy(investments, 'investedAmount');
-  const totalProfitLoss = sumBy(investments, 'profitLoss');
-
-  const sortedByValue = [...investments].sort((a, b) => toNumber(b.currentValue) - toNumber(a.currentValue));
-  const topRisk = sortedByValue[0] || null;
-  const topWeight = totalCurrentValue > 0 ? (toNumber(topRisk?.currentValue) / totalCurrentValue) * 100 : 0;
-
-  const uniqueAssets = new Set(investments.map((item) => String(item.symbol || item.companyName || item.investmentId || '').trim()).filter(Boolean));
-  const assetCount = uniqueAssets.size;
-
-  const plPercent = totalInvested > 0 ? (totalProfitLoss / totalInvested) * 100 : 0;
-
-  const concentrationRisk = clamp(topWeight, 0, 100);
-  const performanceRisk = plPercent >= 10 ? 10 : plPercent >= 0 ? 25 : plPercent >= -10 ? 55 : 80;
-  const diversificationRisk = assetCount >= 10 ? 10 : assetCount >= 6 ? 30 : assetCount >= 4 ? 55 : 80;
-
-  const riskScore = Math.round((0.45 * concentrationRisk) + (0.30 * performanceRisk) + (0.25 * diversificationRisk));
-  const clampedRiskScore = clamp(riskScore, 0, 100);
-
-  const diversificationScore = clamp(Math.round(100 - diversificationRisk), 0, 100);
-  const portfolioHealthScore = clamp(Math.round((100 - performanceRisk) * 0.6 + diversificationScore * 0.4), 0, 100);
-
-  const riskCategory = clampedRiskScore <= 30 ? 'Low Risk' : clampedRiskScore <= 60 ? 'Medium Risk' : 'High Risk';
-
-  const diversification = assetCount >= 10
-    ? 'Strong diversification'
-    : assetCount >= 6
-      ? 'Moderate diversification'
-      : 'Diversification needs improvement';
-
-  let recommendation = 'Portfolio is well diversified';
-  if (riskCategory === 'Medium Risk') {
-    recommendation = 'Consider increasing diversification';
-  } else if (riskCategory === 'High Risk') {
-    recommendation = 'Reduce concentration in risky assets';
-  }
-
-  const mostDiversifiedPortfolio = calculateMostDiversifiedPortfolio(investments, portfolios);
+function getChartTheme() {
+  const css = getComputedStyle(document.documentElement);
 
   return {
-    riskScore: clampedRiskScore,
-    riskCategory,
-    diversificationScore,
-    portfolioHealthScore,
-    diversification,
-    topRiskAsset: topRisk ? (topRisk.companyName || topRisk.symbol || 'N/A') : 'N/A',
-    recommendation,
-    mostDiversifiedPortfolio,
+    label: css.getPropertyValue('--gray-800').trim() || '#424242',
+    tick: css.getPropertyValue('--gray-600').trim() || '#757575',
+    grid: toRgba(css.getPropertyValue('--gray-400').trim() || '#BDBDBD', 0.25),
+    tooltipBackground: toRgba(css.getPropertyValue('--gray-50').trim() || '#FAFAFA', 0.96),
+    tooltipTitle: css.getPropertyValue('--gray-900').trim() || '#212121',
+    tooltipBody: css.getPropertyValue('--gray-800').trim() || '#424242',
+    tooltipBorder: css.getPropertyValue('--gray-300').trim() || '#E0E0E0',
   };
 }
 
-function renderRiskSection(riskData) {
-  setText('riskScoreValue', String(riskData.riskScore));
-  setText('riskCategoryValue', riskData.riskCategory);
-  setText('riskDiversificationScoreValue', String(riskData.diversificationScore));
-  setText('riskHealthScoreValue', String(riskData.portfolioHealthScore));
-  setText('riskDiversificationValue', riskData.diversification);
-  setText('riskTopAssetValue', riskData.topRiskAsset);
-  setText('riskRecommendationValue', riskData.recommendation);
+function toRgba(color, alpha) {
+  const normalized = String(color || '').trim();
+  if (/^#([\da-f]{3}|[\da-f]{6})$/i.test(normalized)) {
+    const hex = normalized.length === 4
+      ? normalized.slice(1).split('').map((c) => c + c).join('')
+      : normalized.slice(1);
+    const r = parseInt(hex.slice(0, 2), 16);
+    const g = parseInt(hex.slice(2, 4), 16);
+    const b = parseInt(hex.slice(4, 6), 16);
+    return `rgba(${r},${g},${b},${alpha})`;
+  }
+
+  return normalized;
 }
 
-function renderInsights(investments, portfolios, riskData) {
+function rerenderAnalyticsChartsForTheme() {
+  if (!document.getElementById('performanceTrendChart')) return;
+
+  const timeline = buildTimelineData(analyticsState.investments, analyticsState.transactions);
+  renderPortfolioPerformanceTimeline(timeline);
+  renderProfitLossTrend(timeline);
+  renderAssetGrowthTimeline(timeline.assetLines);
+  renderTransactionActivityTrend(timeline.transactionTrend);
+  renderBackendRiskData(analyticsState.currentRisk, analyticsState.mode);
+}
+
+function renderInsights(investments, portfolios) {
   const container = document.getElementById('insightsContainer');
   if (!container) return;
 
   if (!investments.length) {
-    container.innerHTML = '<div class="col-12"><div class="p-3" style="border:1px solid var(--gray-300);border-radius:var(--r-sm);background:rgba(255,255,255,.6);">No insights available yet.</div></div>';
+    container.innerHTML = '<div class="col-12"><div class="pm-insight-card p-3">No insights available yet.</div></div>';
     return;
   }
 
@@ -436,6 +617,7 @@ function renderInsights(investments, portfolios, riskData) {
   const best = sortedByPL[0];
   const worst = sortedByPL[sortedByPL.length - 1];
   const highestInvestment = [...investments].sort((a, b) => toNumber(b.investedAmount) - toNumber(a.investedAmount))[0];
+  const bestDiversified = calculateMostDiversifiedPortfolio(investments, portfolios);
 
   const insights = [
     {
@@ -461,8 +643,8 @@ function renderInsights(investments, portfolios, riskData) {
     },
     {
       title: 'Most Diversified Portfolio',
-      value: riskData.mostDiversifiedPortfolio || 'N/A',
-      sub: riskData.recommendation,
+      value: bestDiversified,
+      sub: 'Based on unique asset spread',
       icon: 'diagram-3',
       badgeClass: 'bg-warning-subtle text-warning-emphasis',
     },
@@ -470,14 +652,14 @@ function renderInsights(investments, portfolios, riskData) {
 
   container.innerHTML = insights.map((item) => `
     <div class="col-12 col-md-6 col-xl-3">
-      <div class="p-3 h-100" style="border:1px solid var(--gray-300);border-radius:var(--r-sm);background:rgba(255,255,255,.6);backdrop-filter:blur(8px);">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <div class="pm-insight-card p-3 h-100">
+        <div class="pm-insight-card__head">
           <span class="badge ${item.badgeClass}" style="font-size:.72rem;">Insight</span>
-          <i class="bi bi-${item.icon}" style="font-size:1rem;color:var(--gray-600);"></i>
+          <i class="bi bi-${item.icon} pm-insight-card__icon"></i>
         </div>
-        <div style="font-size:.72rem;color:var(--gray-500);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px;">${item.title}</div>
-        <div style="font-weight:700;font-size:.92rem;margin-bottom:5px;">${escapeHtml(item.value)}</div>
-        <div style="font-size:.8rem;color:var(--gray-600);">${escapeHtml(item.sub)}</div>
+        <div class="pm-insight-card__title">${item.title}</div>
+        <div class="pm-insight-card__value">${escapeHtml(item.value)}</div>
+        <div class="pm-insight-card__sub">${escapeHtml(item.sub)}</div>
       </div>
     </div>
   `).join('');
@@ -528,7 +710,13 @@ function buildTimelineData(investments, transactions) {
   const safeBuySeries = transactionLabels.length ? buySeries : [0];
   const safeSellSeries = transactionLabels.length ? sellSeries : [0];
 
-  const topAssets = normalizedInvestments
+  const aggregatedAssets = getAggregatedInvestments(normalizedInvestments)
+    .map((item) => ({
+      ...item,
+      _date: parseDate(item.purchaseDate),
+    }));
+
+  const topAssets = aggregatedAssets
     .slice()
     .sort((a, b) => toNumber(b.currentValue) - toNumber(a.currentValue))
     .slice(0, 6);
@@ -617,7 +805,7 @@ function calculateMostDiversifiedPortfolio(investments, portfolios) {
     const pid = toNumber(item.portfolioId);
     if (!pid) return;
     if (!portfolioMap[pid]) portfolioMap[pid] = new Set();
-    portfolioMap[pid].add(String(item.assetType || item.symbol || item.companyName || 'Unknown'));
+    portfolioMap[pid].add(String(item.symbol || item.assetType || item.companyName || 'Unknown'));
   });
 
   let bestPortfolio = portfolios[0];
@@ -644,10 +832,10 @@ function showAnalyticsError(message) {
 
   const alert = document.createElement('div');
   alert.id = 'analyticsApiAlert';
-  alert.className = 'alert alert-danger alert-dismissible fade show';
+  alert.className = 'alert alert-warning alert-dismissible fade show';
   alert.setAttribute('role', 'alert');
   alert.innerHTML = `
-    <strong>Failed to load analytics data.</strong> ${escapeHtml(message)}
+    <strong>Analytics notice:</strong> ${escapeHtml(message)}
     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
   `;
   main.prepend(alert);
@@ -657,7 +845,7 @@ function animateCount(id, target, formatter) {
   const el = document.getElementById(id);
   if (!el) return;
 
-  const duration = 1400;
+  const duration = 1000;
   const start = performance.now();
   const from = 0;
   const safeTarget = Number.isFinite(target) ? target : 0;
@@ -702,15 +890,18 @@ function destroyChart(chartRef) {
   }
 }
 
+function getAggregatedInvestments(investments) {
+  if (typeof window.aggregateInvestmentsBySymbol === 'function') {
+    return window.aggregateInvestmentsBySymbol(investments);
+  }
+  return Array.isArray(investments) ? investments : [];
+}
+
 function setText(id, value) {
   const element = document.getElementById(id);
   if (element) {
     element.textContent = value;
   }
-}
-
-function sumBy(list, key) {
-  return (list || []).reduce((sum, item) => sum + toNumber(item && item[key]), 0);
 }
 
 function toNumber(value) {
@@ -731,6 +922,14 @@ function formatINR(value) {
 function formatSignedINR(value) {
   const n = toNumber(value);
   return `${n > 0 ? '+' : ''}${formatINR(n)}`;
+}
+
+function formatPercent(value) {
+  return `${toNumber(value).toFixed(2)}%`;
+}
+
+function formatDecimal(value, scale) {
+  return toNumber(value).toFixed(scale);
 }
 
 function parseDate(value) {

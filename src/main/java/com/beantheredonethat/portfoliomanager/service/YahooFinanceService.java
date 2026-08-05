@@ -161,14 +161,21 @@ public class YahooFinanceService implements MarketDataService {
         long backoff = INITIAL_BACKOFF_MS;
         while (true) {
             attempt++;
+            String responseBody = null;
             try {
                 ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, requestEntity, String.class);
-                String resp = response.getBody();
-                if (resp == null) {
+                responseBody = response.getBody();
+
+                logger.debug("Yahoo API response for symbol {} (attempt {}): {}",
+                        normalizedSymbol,
+                        attempt,
+                        abbreviate(responseBody));
+
+                if (responseBody == null) {
                     throw new YahooFinanceException("Empty response from Yahoo Finance for symbol: " + normalizedSymbol);
                 }
 
-                JsonNode root = objectMapper.readTree(resp);
+                JsonNode root = objectMapper.readTree(responseBody);
                 JsonNode chart = root.path("chart");
                 if (chart.isMissingNode() || chart.isNull()) {
                     throw new YahooFinanceException("No chart data for symbol: " + normalizedSymbol);
@@ -198,15 +205,24 @@ public class YahooFinanceService implements MarketDataService {
                 }
                 backoff *= 2;
             } catch (HttpClientErrorException e) {
+                logger.error("Yahoo HTTP error for symbol {} (status={}): {}",
+                        normalizedSymbol,
+                        e.getStatusCode(),
+                        abbreviate(e.getResponseBodyAsString()));
                 if (e.getStatusCode().value() == 404) {
                     throw new IllegalArgumentException("Invalid ticker symbol: " + normalizedSymbol, e);
                 }
                 throw new YahooFinanceException("Failed to fetch Yahoo Finance data for symbol: " + normalizedSymbol + ", status: " + e.getStatusCode(), e);
             } catch (RestClientException e) {
+                logger.error("Yahoo network failure for symbol {}: {}", normalizedSymbol, e.getMessage(), e);
                 throw new YahooFinanceException("Failed to fetch Yahoo Finance data for symbol: " + normalizedSymbol, e);
             } catch (IllegalArgumentException e) {
                 throw e;
             } catch (Exception e) {
+                logger.error("Yahoo parsing failure for symbol {}. Response: {}",
+                        normalizedSymbol,
+                        abbreviate(responseBody),
+                        e);
                 throw new YahooFinanceException("Failed to parse Yahoo Finance response for symbol: " + normalizedSymbol, e);
             }
         }
@@ -216,6 +232,16 @@ public class YahooFinanceService implements MarketDataService {
         HttpHeaders headers = new HttpHeaders();
         headers.add(HttpHeaders.USER_AGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
         return headers;
+    }
+
+    private String abbreviate(String text) {
+        if (text == null) {
+            return "<null>";
+        }
+        if (text.length() <= 600) {
+            return text;
+        }
+        return text.substring(0, 600) + "...";
     }
 
     public static class HistoricalPricePoint {

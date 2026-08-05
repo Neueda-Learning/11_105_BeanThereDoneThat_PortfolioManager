@@ -44,11 +44,45 @@
   --tr:   background-color .15s ease, color .15s ease, border-color .15s ease;
 }
 
+:root[data-theme='dark'] {
+  --pink-100:  #442833;
+  --pink-200:  #b9738d;
+  --pink-300:  #d48ea8;
+  --pink-400:  #f2acc4;
+  --pink-txt:  #ffe1ec;
+
+  --white:     #12161c;
+  --gray-50:   #1a1f27;
+  --gray-100:  #0f1319;
+  --gray-200:  #2a323d;
+  --gray-300:  #364151;
+  --gray-400:  #667287;
+  --gray-500:  #8b97aa;
+  --gray-600:  #a2adbf;
+  --gray-700:  #bcc4d1;
+  --gray-800:  #d5dbe6;
+  --gray-900:  #eff3f8;
+
+  --success:   #63d67b;
+  --success-bg:#13311e;
+  --danger:    #ff8a8a;
+  --danger-bg: #3e1f25;
+  --warning:   #ffbf66;
+  --warning-bg:#3a2a14;
+  --info:      #6cb7ff;
+  --info-bg:   #132b45;
+
+  --sh-xs:     0 1px 3px rgba(0,0,0,.35);
+  --sh-sm:     0 2px 6px rgba(0,0,0,.4);
+  --sh-md:     0 8px 18px rgba(0,0,0,.45);
+}
+
 /* ── Reset ───────────────────────────────────────────────────── */
 *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
 html { font-size:14px; scroll-behavior:smooth; }
 body { font-family:var(--font); background:var(--gray-100); color:var(--gray-900);
        line-height:1.6; -webkit-font-smoothing:antialiased; }
+:root[data-theme='dark'] body { color-scheme:dark; }
 a    { color:var(--pink-txt); text-decoration:none; transition:var(--tr); }
 a:hover { color:var(--pink-400); }
 img  { max-width:100%; display:block; }
@@ -85,6 +119,7 @@ img  { max-width:100%; display:block; }
 .pm-navbar__search input:focus { border-color:var(--pink-300); background:var(--white); }
 .pm-navbar__search i { position:absolute; left:9px; top:50%; transform:translateY(-50%); color:var(--gray-500); font-size:.8rem; pointer-events:none; }
 .pm-navbar__actions { display:flex; align-items:center; gap:2px; margin-left:auto; }
+.pm-theme-toggle { margin-right:8px; }
 .pm-navbar__icon-btn {
   width:34px; height:34px; border:none; background:transparent;
   border-radius:var(--r-sm); display:flex; align-items:center;
@@ -168,6 +203,56 @@ img  { max-width:100%; display:block; }
 .pm-card__bd { padding:16px; }
 .pm-card__bd--bare { padding:0; }
 .pm-card__ft { padding:10px 16px; border-top:1px solid var(--gray-200); background:var(--gray-50); border-radius:0 0 var(--r-md) var(--r-md); }
+
+.pm-chart-surface {
+  background: var(--gray-50);
+  border: 1px dashed var(--gray-300);
+  border-radius: var(--r-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pm-chart-surface--md { height: 260px; }
+.pm-chart-surface--lg { height: 320px; }
+
+.pm-insight-card {
+  border: 1px solid var(--gray-300);
+  border-radius: var(--r-sm);
+  background: var(--gray-50);
+}
+
+.pm-insight-card__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.pm-insight-card__icon {
+  font-size: 1rem;
+  color: var(--gray-600);
+}
+
+.pm-insight-card__title {
+  font-size: .72rem;
+  color: var(--gray-500);
+  text-transform: uppercase;
+  letter-spacing: .8px;
+  margin-bottom: 4px;
+}
+
+.pm-insight-card__value {
+  font-weight: 700;
+  font-size: .92rem;
+  margin-bottom: 5px;
+  color: var(--gray-900);
+}
+
+.pm-insight-card__sub {
+  font-size: .8rem;
+  color: var(--gray-600);
+}
 
 /* Stat card */
 .pm-stat { background:var(--white); border:1px solid var(--gray-300); border-radius:var(--r-md); padding:16px; box-shadow:var(--sh-xs); }
@@ -286,6 +371,39 @@ img  { max-width:100%; display:block; }
 .modal-header .modal-title { font-size:.9rem; font-weight:700; color:var(--gray-900); }
 .modal-body    { padding:18px; }
 .modal-footer  { padding:12px 18px; border-top:1px solid var(--gray-200); gap:7px; }
+
+.dropdown-menu {
+  background: var(--white);
+  border-color: var(--gray-300);
+  color: var(--gray-900);
+}
+
+.dropdown-item {
+  color: var(--gray-800);
+}
+
+.dropdown-item:hover,
+.dropdown-item:focus {
+  background: var(--gray-50);
+  color: var(--gray-900);
+}
+
+.dropdown-divider {
+  border-color: var(--gray-200);
+}
+
+.modal-content {
+  background: var(--white);
+  color: var(--gray-900);
+}
+
+.btn-close {
+  filter: none;
+}
+
+:root[data-theme='dark'] .btn-close {
+  filter: invert(1) grayscale(100%) brightness(180%);
+}
 
 /* ================================================================
    TABS

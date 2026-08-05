@@ -15,14 +15,7 @@
       <div class="pm-navbar__brand-icon"><i class="bi bi-graph-up-arrow"></i></div>
       <span class="pm-navbar__brand-name">Portfolio Manager</span>
     </a>
-    <div class="pm-navbar__search">
-      <i class="bi bi-search"></i>
-      <input type="text" placeholder="Search..." aria-label="Search"/>
-    </div>
     <div class="pm-navbar__actions">
-      <button class="pm-navbar__icon-btn" title="Notifications"><i class="bi bi-bell"></i><span class="pm-navbar__badge"></span></button>
-      <button class="pm-navbar__icon-btn" title="Settings"><i class="bi bi-gear"></i></button>
-      <div class="pm-navbar__divider"></div>
       <div class="dropdown">
         <button class="pm-navbar__avatar" data-bs-toggle="dropdown" data-initials aria-expanded="false">JD</button>
         <ul class="dropdown-menu dropdown-menu-end" style="border-radius:var(--r-lg);border:1px solid var(--gray-300);min-width:190px;padding:4px;">
@@ -68,14 +61,33 @@
         <p class="pm-page-sub">Professional portfolio intelligence and risk insights.</p>
       </div>
       <div style="display:flex;gap:8px;">
-        <select class="pm-input" style="width:160px;height:34px;"><option>All Portfolios</option><option>Growth Portfolio</option><option>Income Portfolio</option><option>Crypto Basket</option></select>
+        <div id="analyticsPortfolioGroup" style="display:none;">
+          <select id="analyticsPortfolioSelect" class="pm-input" style="width:220px;height:34px;"></select>
+        </div>
         <select class="pm-input" style="width:120px;height:34px;"><option>1 Year</option><option>6 Months</option><option>3 Months</option><option>1 Month</option></select>
       </div>
     </div>
 
     <div class="row g-3 mb-4">
+      <div class="col-12">
+        <div class="pm-card">
+          <div class="pm-card__bd" style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;">
+            <div class="btn-group" role="group" aria-label="Risk analysis mode">
+              <button id="analyzePortfolioBtn" type="button" class="btn btn-sm btn-primary">Analyze Portfolio</button>
+              <button id="analyzeAssetBtn" type="button" class="btn btn-sm btn-outline-primary">Analyze Individual Asset</button>
+            </div>
+            <div id="assetAnalyzePanel" style="display:none;gap:8px;align-items:center;">
+              <input id="assetSymbolInput" class="pm-input" type="text" placeholder="Enter ticker symbol (e.g. RELIANCE)" style="width:260px;height:34px;" />
+              <button id="runAssetAnalysisBtn" type="button" class="btn btn-sm btn-primary">Analyze</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-3 mb-4">
       <div class="col-12 col-md-6 col-xl-3">
-        <div class="pm-stat" style="background:rgba(255,255,255,.55);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.7);">
+        <div class="pm-stat">
           <div class="pm-stat__icon pm-stat__icon--green"><i class="bi bi-bank2"></i></div>
           <div class="pm-stat__lbl">Total Value</div>
           <div class="pm-stat__val" id="kpiTotalValue">&#8377;0</div>
@@ -84,29 +96,29 @@
         </div>
       </div>
       <div class="col-12 col-md-6 col-xl-3">
-        <div class="pm-stat" style="background:rgba(255,255,255,.55);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.7);">
+        <div class="pm-stat">
           <div class="pm-stat__icon pm-stat__icon--blue"><i class="bi bi-percent"></i></div>
-          <div class="pm-stat__lbl">ROI %</div>
+          <div class="pm-stat__lbl">Avg Annual Return</div>
           <div class="pm-stat__val" id="kpiRoi">0.00%</div>
           <div id="kpiRoiTrend" class="pm-stat__dlt delta-flat"><i class="bi bi-dash"></i> Stable</div>
           <div style="height:38px;margin-top:6px;"><canvas id="sparkRoi"></canvas></div>
         </div>
       </div>
       <div class="col-12 col-md-6 col-xl-3">
-        <div class="pm-stat" style="background:rgba(255,255,255,.55);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.7);">
+        <div class="pm-stat">
           <div class="pm-stat__icon pm-stat__icon--pink"><i class="bi bi-graph-up-arrow"></i></div>
-          <div class="pm-stat__lbl">Profit/Loss</div>
+          <div class="pm-stat__lbl">Annualized Volatility</div>
           <div class="pm-stat__val" id="kpiProfitLoss">&#8377;0</div>
           <div id="kpiProfitLossTrend" class="pm-stat__dlt delta-flat"><i class="bi bi-dash"></i> Stable</div>
           <div style="height:38px;margin-top:6px;"><canvas id="sparkProfitLoss"></canvas></div>
         </div>
       </div>
       <div class="col-12 col-md-6 col-xl-3">
-        <div class="pm-stat" style="background:rgba(255,255,255,.55);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.7);">
+        <div class="pm-stat">
           <div class="pm-stat__icon pm-stat__icon--amber"><i class="bi bi-shield-exclamation"></i></div>
-          <div class="pm-stat__lbl">Risk Score</div>
+          <div class="pm-stat__lbl">Sharpe Ratio</div>
           <div class="pm-stat__val" id="kpiRiskScore">0</div>
-          <div id="kpiRiskScoreTrend" class="pm-stat__dlt delta-flat"><i class="bi bi-dash"></i> Low Risk</div>
+          <div id="kpiRiskScoreTrend" class="pm-stat__dlt delta-flat"><i class="bi bi-dash"></i> LOW</div>
           <div style="height:38px;margin-top:6px;"><canvas id="sparkRisk"></canvas></div>
         </div>
       </div>
@@ -117,7 +129,7 @@
         <div class="pm-card">
           <div class="pm-card__hd"><span class="pm-card__title"><i class="bi bi-activity"></i> Portfolio Performance Trend</span></div>
           <div class="pm-card__bd">
-            <div style="height:320px;background:linear-gradient(180deg,#ffffff,#f9fbff);border-radius:var(--r-sm);border:1px solid var(--gray-300);display:flex;align-items:center;justify-content:center;">
+            <div class="pm-chart-surface pm-chart-surface--lg">
               <canvas id="performanceTrendChart"></canvas>
             </div>
           </div>
@@ -130,7 +142,7 @@
         <div class="pm-card">
           <div class="pm-card__hd"><span class="pm-card__title"><i class="bi bi-graph-up"></i> Profit/Loss Trend</span></div>
           <div class="pm-card__bd">
-            <div style="height:260px;background:linear-gradient(180deg,#ffffff,#f9fbff);border-radius:var(--r-sm);border:1px solid var(--gray-300);display:flex;align-items:center;justify-content:center;">
+            <div class="pm-chart-surface pm-chart-surface--md">
               <canvas id="profitLossTrendChart"></canvas>
             </div>
           </div>
@@ -140,7 +152,7 @@
         <div class="pm-card">
           <div class="pm-card__hd"><span class="pm-card__title"><i class="bi bi-diagram-3"></i> Transaction Activity Trend</span></div>
           <div class="pm-card__bd">
-            <div style="height:260px;background:linear-gradient(180deg,#ffffff,#f9fbff);border-radius:var(--r-sm);border:1px solid var(--gray-300);display:flex;align-items:center;justify-content:center;">
+            <div class="pm-chart-surface pm-chart-surface--md">
               <canvas id="transactionActivityTrendChart"></canvas>
             </div>
           </div>
@@ -153,7 +165,7 @@
         <div class="pm-card">
           <div class="pm-card__hd"><span class="pm-card__title"><i class="bi bi-sliders2"></i> Asset Growth Timeline</span></div>
           <div class="pm-card__bd">
-            <div style="height:320px;background:linear-gradient(180deg,#ffffff,#f9fbff);border-radius:var(--r-sm);border:1px solid var(--gray-300);display:flex;align-items:center;justify-content:center;">
+            <div class="pm-chart-surface pm-chart-surface--lg">
               <canvas id="assetGrowthTimelineChart"></canvas>
             </div>
           </div>
@@ -166,28 +178,33 @@
         <div class="pm-card h-100">
           <div class="pm-card__hd"><span class="pm-card__title"><i class="bi bi-shield-check"></i> Risk Analysis Dashboard</span></div>
           <div class="pm-card__bd">
+            <div id="assetMetaSummary" class="p-2 mb-3" style="display:none;background:var(--gray-50);border:1px solid var(--gray-300);border-radius:var(--r-sm);font-size:.82rem;">
+              <div><strong>Asset:</strong> <span id="assetSymbolValue">N/A</span></div>
+              <div><strong>Exchange:</strong> <span id="assetExchangeValue">N/A</span></div>
+              <div><strong>Currency:</strong> <span id="assetCurrencyValue">N/A</span></div>
+            </div>
             <div class="row g-3">
               <div class="col-6 col-xl-2">
-                <div style="font-size:.75rem;color:var(--gray-500);text-transform:uppercase;letter-spacing:.8px;">Risk Score</div>
-                <div id="riskScoreValue" style="font-weight:800;font-size:1.4rem;">0</div>
+                <div style="font-size:.75rem;color:var(--gray-500);text-transform:uppercase;letter-spacing:.8px;">Portfolio Value</div>
+                <div id="riskPortfolioValue" style="font-weight:800;font-size:1.4rem;">₹0</div>
               </div>
               <div class="col-6 col-xl-2">
-                <div style="font-size:.75rem;color:var(--gray-500);text-transform:uppercase;letter-spacing:.8px;">Risk Category</div>
-                <div id="riskCategoryValue" style="font-weight:700;font-size:1.05rem;">Low Risk</div>
+                <div style="font-size:.75rem;color:var(--gray-500);text-transform:uppercase;letter-spacing:.8px;">Avg Annual Return</div>
+                <div id="riskAverageReturn" style="font-weight:700;font-size:1.05rem;">0.00%</div>
               </div>
               <div class="col-6 col-xl-2">
-                <div style="font-size:.75rem;color:var(--gray-500);text-transform:uppercase;letter-spacing:.8px;">Diversification Score</div>
-                <div id="riskDiversificationScoreValue" style="font-weight:700;font-size:1.05rem;">0</div>
+                <div style="font-size:.75rem;color:var(--gray-500);text-transform:uppercase;letter-spacing:.8px;">Annualized Volatility</div>
+                <div id="riskAnnualizedVolatility" style="font-weight:700;font-size:1.05rem;">0.00%</div>
               </div>
               <div class="col-6 col-xl-2">
-                <div style="font-size:.75rem;color:var(--gray-500);text-transform:uppercase;letter-spacing:.8px;">Portfolio Health</div>
-                <div id="riskHealthScoreValue" style="font-weight:700;font-size:1.05rem;">0</div>
+                <div style="font-size:.75rem;color:var(--gray-500);text-transform:uppercase;letter-spacing:.8px;">Maximum Drawdown</div>
+                <div id="riskMaximumDrawdown" style="font-weight:700;font-size:1.05rem;">0.00%</div>
               </div>
               <div class="col-12 col-xl-4">
                 <div class="p-2" style="background:var(--gray-50);border:1px solid var(--gray-300);border-radius:var(--r-sm);font-size:.82rem;">
-                  <div><strong>Portfolio Diversification:</strong> <span id="riskDiversificationValue">No assets</span></div>
-                  <div><strong>Top Risk Asset:</strong> <span id="riskTopAssetValue">N/A</span></div>
-                  <div><strong>Recommendation:</strong> <span id="riskRecommendationValue">Portfolio is well diversified</span></div>
+                  <div><strong>Sharpe Ratio:</strong> <span id="riskSharpeRatio">0.0000</span></div>
+                  <div><strong>Risk Level:</strong> <span id="riskLevelValue">LOW</span></div>
+                  <div><strong>Analysis Mode:</strong> <span id="riskAnalysisModeValue">PORTFOLIO</span></div>
                 </div>
               </div>
             </div>
@@ -202,7 +219,7 @@
           <div class="pm-card__hd"><span class="pm-card__title"><i class="bi bi-lightbulb-fill"></i> Market Insights</span></div>
           <div class="pm-card__bd">
             <div class="row g-3" id="insightsContainer">
-              <div class="col-12 col-md-6 col-xl-3"><div class="p-3" style="border:1px solid var(--gray-300);border-radius:var(--r-sm);background:rgba(255,255,255,.6);">Loading insights...</div></div>
+              <div class="col-12 col-md-6 col-xl-3"><div class="pm-insight-card p-3">Loading insights...</div></div>
             </div>
           </div>
         </div>
