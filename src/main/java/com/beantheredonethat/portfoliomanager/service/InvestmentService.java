@@ -7,6 +7,7 @@ import com.beantheredonethat.portfoliomanager.dto.UpdateInvestmentRequest;
 import com.beantheredonethat.portfoliomanager.entity.Investment;
 import com.beantheredonethat.portfoliomanager.exception.InvestmentNotFoundException;
 import com.beantheredonethat.portfoliomanager.exception.PortfolioNotFoundException;
+import com.beantheredonethat.portfoliomanager.exception.YahooFinanceException;
 import com.beantheredonethat.portfoliomanager.marketdata.AssetType;
 import com.beantheredonethat.portfoliomanager.marketdata.MarketDataFactory;
 import com.beantheredonethat.portfoliomanager.marketdata.MarketDataRequest;
@@ -33,16 +34,19 @@ public class InvestmentService {
     private final InvestmentRepository investmentRepository;
     private final PortfolioRepository portfolioRepository;
     private final MarketDataFactory marketDataFactory;
+    private final SymbolResolverService symbolResolverService;
 
 
     public InvestmentService(
             InvestmentRepository investmentRepository,
             PortfolioRepository portfolioRepository,
-            MarketDataFactory marketDataFactory) {
+            MarketDataFactory marketDataFactory,
+            SymbolResolverService symbolResolverService) {
 
         this.investmentRepository = investmentRepository;
         this.portfolioRepository = portfolioRepository;
         this.marketDataFactory = marketDataFactory;
+        this.symbolResolverService = symbolResolverService;
     }
 
 
@@ -62,44 +66,74 @@ public class InvestmentService {
                         .multiply(request.getPurchasePrice())
                         .setScale(2, RoundingMode.HALF_UP);
 
-        String originalSymbol = request.getSymbol() == null ? null : request.getSymbol().trim().toUpperCase();
-        SymbolResolutionResult resolution = symbolResolverService.resolveSymbol(originalSymbol, request.getAssetType());
 
-        String resolvedSymbol = resolution.getResolvedSymbol() != null
-                ? resolution.getResolvedSymbol()
-                : originalSymbol;
-        String resolvedExchange = resolution.getExchange();
-        String resolvedCurrency = resolution.getCurrency();
-        String resolvedName = resolution.getAssetName();
 
-        // Calculate investedAmount
-        BigDecimal investedAmount = request.getQuantity().multiply(request.getPurchasePrice()).setScale(2, RoundingMode.HALF_UP);
+        String originalSymbol =
+                request.getSymbol() == null
+                        ? null
+                        : request.getSymbol()
+                        .trim()
+                        .toUpperCase();
 
-        // Keep manual current price as fallback; use market price when available.
-        BigDecimal currentPrice = request.getCurrentPrice();
+
+
+        SymbolResolutionResult resolution =
+                symbolResolverService.resolveSymbol(
+                        originalSymbol,
+                        request.getAssetType());
+
+
+
+        String resolvedSymbol =
+                resolution.getResolvedSymbol() != null
+                        ? resolution.getResolvedSymbol()
+                        : originalSymbol;
+
+
+        String resolvedExchange =
+                resolution.getExchange();
+
+
+        String resolvedCurrency =
+                resolution.getCurrency();
+
+
+        String resolvedName =
+                resolution.getAssetName();
+
+
+
+        BigDecimal currentPrice =
+                request.getCurrentPrice();
+
         BigDecimal currentValue = null;
+
         BigDecimal profitLoss = null;
+
 
 
         try {
 
             AssetType assetType =
-                    parseAssetType(request.getAssetType());
+                    parseAssetType(
+                            request.getAssetType());
 
 
             MarketDataRequest marketRequest =
                     new MarketDataRequest();
 
 
-            marketRequest.setAssetType(assetType);
+            marketRequest.setAssetType(
+                    assetType);
+
 
             marketRequest.setSymbol(
-                    request.getSymbol());
+                    resolvedSymbol);
 
 
-            // Required for Mutual Fund AMFI lookup
             marketRequest.setSchemeCode(
                     request.getSchemeCode());
+
 
 
             MarketDataResponse response =
@@ -115,21 +149,28 @@ public class InvestmentService {
 
                 currentPrice =
                         response.getPrice()
-                                .setScale(2,
+                                .setScale(
+                                        2,
                                         RoundingMode.HALF_UP);
+
 
 
                 currentValue =
                         currentPrice
-                                .multiply(request.getQuantity())
-                                .setScale(2,
+                                .multiply(
+                                        request.getQuantity())
+                                .setScale(
+                                        2,
                                         RoundingMode.HALF_UP);
+
 
 
                 profitLoss =
                         currentValue
-                                .subtract(investedAmount)
-                                .setScale(2,
+                                .subtract(
+                                        investedAmount)
+                                .setScale(
+                                        2,
                                         RoundingMode.HALF_UP);
             }
 
@@ -147,12 +188,13 @@ public class InvestmentService {
                 new Investment();
 
 
+
         investment.setPortfolioId(
                 request.getPortfolioId());
 
 
         investment.setSymbol(
-                request.getSymbol());
+                resolvedSymbol);
 
 
         investment.setSchemeCode(
@@ -160,7 +202,18 @@ public class InvestmentService {
 
 
         investment.setCompanyName(
-                request.getCompanyName());
+                resolvedName != null &&
+                        !resolvedName.isBlank()
+                        ? resolvedName
+                        : request.getCompanyName());
+
+
+        investment.setExchange(
+                resolvedExchange);
+
+
+        investment.setCurrency(
+                resolvedCurrency);
 
 
         investment.setAssetType(
@@ -229,21 +282,32 @@ public class InvestmentService {
 
 
 
-
     public List<InvestmentResponse> getAllInvestments() {
-        List<Investment> investments = investmentRepository.findAllInvestments();
-        for (Investment inv : investments) {
+
+        List<Investment> investments =
+                investmentRepository.findAllInvestments();
+
+
+        for(Investment investment : investments) {
+
             try {
-                refreshMarketValues(inv);
-            } catch (YahooFinanceException yfe) {
-                logger.warn("Failed to refresh market values for investment {}: {}", inv.getInvestmentId(), yfe.getMessage());
-            } catch (Exception e) {
-                logger.warn("Unexpected error refreshing market values for investment {}: {}", inv.getInvestmentId(), e.getMessage());
+
+                refreshMarketValues(investment);
+
+            } catch(Exception e) {
+
+                logger.warn(
+                        "Unable to refresh investment {} : {}",
+                        investment.getInvestmentId(),
+                        e.getMessage());
             }
         }
-        return investments.stream().map(this::mapToInvestmentResponse).collect(Collectors.toList());
-    }
 
+
+        return investments.stream()
+                .map(this::mapToInvestmentResponse)
+                .collect(Collectors.toList());
+    }
 
 
 
@@ -252,20 +316,38 @@ public class InvestmentService {
 
 
         portfolioRepository.findById(portfolioId)
-                .orElseThrow(() -> new PortfolioNotFoundException("Portfolio not found with ID: " + portfolioId));
+                .orElseThrow(() ->
+                        new PortfolioNotFoundException(
+                                "Portfolio not found with ID: "
+                                        + portfolioId));
 
-        List<Investment> investments = investmentRepository.findByPortfolioId(portfolioId);
-        for (Investment inv : investments) {
+
+        List<Investment> investments =
+                investmentRepository.findByPortfolioId(portfolioId);
+
+
+
+        for(Investment investment : investments) {
+
             try {
-                refreshMarketValues(inv);
-            } catch (YahooFinanceException yfe) {
-                logger.warn("Failed to refresh market values for investment {}: {}", inv.getInvestmentId(), yfe.getMessage());
-            } catch (Exception e) {
-                logger.warn("Unexpected error refreshing market values for investment {}: {}", inv.getInvestmentId(), e.getMessage());
+
+                refreshMarketValues(investment);
+
+            } catch(Exception e) {
+
+                logger.warn(
+                        "Unable to refresh investment {} : {}",
+                        investment.getInvestmentId(),
+                        e.getMessage());
             }
         }
-        return investments.stream().map(this::mapToInvestmentResponse).collect(Collectors.toList());
+
+
+        return investments.stream()
+                .map(this::mapToInvestmentResponse)
+                .collect(Collectors.toList());
     }
+
     public InvestmentResponse updateInvestment(
             Integer id,
             UpdateInvestmentRequest request) {
@@ -279,34 +361,51 @@ public class InvestmentService {
 
 
 
-        if(request.getQuantity()!=null)
+        if(request.getQuantity() != null) {
+
             investment.setQuantity(
                     request.getQuantity());
+        }
 
 
-        if(request.getPurchasePrice()!=null)
+
+        if(request.getPurchasePrice() != null) {
+
             investment.setPurchasePrice(
                     request.getPurchasePrice());
+        }
 
 
-        if(request.getPurchaseDate()!=null)
+
+        if(request.getPurchaseDate() != null) {
+
             investment.setPurchaseDate(
                     request.getPurchaseDate());
+        }
 
 
-        if(request.getAssetType()!=null)
+
+        if(request.getAssetType() != null) {
+
             investment.setAssetType(
                     request.getAssetType());
+        }
 
 
-        if(request.getCustomAssetType()!=null)
+
+        if(request.getCustomAssetType() != null) {
+
             investment.setCustomAssetType(
                     request.getCustomAssetType());
+        }
 
 
-        if(request.getSchemeCode()!=null)
+
+        if(request.getSchemeCode() != null) {
+
             investment.setSchemeCode(
                     request.getSchemeCode());
+        }
 
 
 
@@ -314,18 +413,24 @@ public class InvestmentService {
                 investment.getQuantity()
                         .multiply(
                                 investment.getPurchasePrice())
-                        .setScale(2,
+                        .setScale(
+                                2,
                                 RoundingMode.HALF_UP));
 
+
+
         refreshMarketValues(investment);
+
 
 
         investmentRepository.updateInvestment(
                 investment);
 
 
+
         return mapToInvestmentResponse(investment);
     }
+
 
 
 
@@ -363,11 +468,15 @@ public class InvestmentService {
                     new MarketDataRequest();
 
 
-            request.setAssetType(assetType);
+
+            request.setAssetType(
+                    assetType);
+
 
 
             request.setSymbol(
                     investment.getSymbol());
+
 
 
             request.setSchemeCode(
@@ -388,7 +497,8 @@ public class InvestmentService {
 
                 BigDecimal currentPrice =
                         response.getPrice()
-                                .setScale(2,
+                                .setScale(
+                                        2,
                                         RoundingMode.HALF_UP);
 
 
@@ -397,7 +507,8 @@ public class InvestmentService {
                         currentPrice
                                 .multiply(
                                         investment.getQuantity())
-                                .setScale(2,
+                                .setScale(
+                                        2,
                                         RoundingMode.HALF_UP);
 
 
@@ -406,7 +517,8 @@ public class InvestmentService {
                         currentValue
                                 .subtract(
                                         investment.getInvestedAmount())
-                                .setScale(2,
+                                .setScale(
+                                        2,
                                         RoundingMode.HALF_UP);
 
 
@@ -415,8 +527,10 @@ public class InvestmentService {
                         currentPrice);
 
 
+
                 investment.setCurrentValue(
                         currentValue);
+
 
 
                 investment.setProfitLoss(
@@ -431,17 +545,23 @@ public class InvestmentService {
                         profitLoss);
             }
 
-            // Persist refreshed values
-            investmentRepository.updateMarketValues(investment.getInvestmentId(), currentPrice, currentValue, profitLoss);
-            // Update in-memory object as well
-            investment.setCurrentPrice(currentPrice);
-            investment.setCurrentValue(currentValue);
-            investment.setProfitLoss(profitLoss);
-        } catch (YahooFinanceException yfe) {
-            logger.warn("Unable to refresh market values for symbol {}: {}", investment.getSymbol(), yfe.getMessage());
-            // Leave existing market values as-is (may be null)
-        } catch (IllegalArgumentException iae) {
-            logger.warn("Skipping refresh for unresolved symbol {}: {}", investment.getSymbol(), iae.getMessage());
+
+
+        } catch(YahooFinanceException yfe) {
+
+            logger.warn(
+                    "Unable to refresh market values for symbol {} : {}",
+                    investment.getSymbol(),
+                    yfe.getMessage());
+
+
+        } catch(IllegalArgumentException iae) {
+
+            logger.warn(
+                    "Invalid symbol {} : {}",
+                    investment.getSymbol(),
+                    iae.getMessage());
+
 
         } catch(Exception e) {
 
@@ -449,7 +569,6 @@ public class InvestmentService {
                     "Unable to refresh investment {} : {}",
                     investment.getInvestmentId(),
                     e.getMessage());
-
         }
     }
 
@@ -471,18 +590,36 @@ public class InvestmentService {
             String assetType) {
 
 
-        if(assetType == null)
+        if(assetType == null) {
+
             return AssetType.OTHER;
+        }
+
+
+        String normalized =
+                assetType
+                        .trim()
+                        .toUpperCase();
+
+
+
+        if(normalized.equals("CRYPTOCURRENCY")) {
+
+            normalized = "CRYPTO";
+
+        }
+
 
 
         try {
 
-            return AssetType.valueOf(
-                    assetType.toUpperCase());
+            return AssetType.valueOf(normalized);
+
 
         } catch(Exception e) {
 
             return AssetType.OTHER;
+
         }
     }
 
