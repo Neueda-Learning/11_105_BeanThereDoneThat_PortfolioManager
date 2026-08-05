@@ -1,0 +1,68 @@
+﻿/* ================================================================
+   dashboard.css — Dashboard-specific styles
+   Complements style.css for the dashboard page only
+   ================================================================ */
+
+/* Chart containers */
+.chart-box { position:relative; }
+.chart-box canvas { width:100% !important; }
+
+/* Activity feed */
+.activity-feed { list-style:none; padding:0; }
+.activity-feed li {
+  display:flex; align-items:flex-start; gap:10px;
+  padding:10px 16px; border-bottom:1px solid var(--gray-200);
+}
+.activity-feed li:last-child { border-bottom:none; }
+.activity-dot {
+  width:8px; height:8px; border-radius:50%; flex-shrink:0;
+  margin-top:5px; background:var(--pink-300);
+}
+.activity-dot--green  { background:var(--success); }
+.activity-dot--red    { background:var(--danger); }
+.activity-dot--blue   { background:var(--info); }
+.activity-dot--amber  { background:var(--warning); }
+.activity-meta  { font-size:.76rem; color:var(--gray-500); margin-top:1px; }
+.activity-title { font-size:.81rem; color:var(--gray-800); font-weight:500; }
+
+/* Portfolio progress bars */
+.portfolio-bar-wrap { margin-bottom:12px; }
+.portfolio-bar-label { display:flex; justify-content:space-between; margin-bottom:4px; font-size:.78rem; }
+.portfolio-bar-label .name  { color:var(--gray-700); font-weight:500; }
+.portfolio-bar-label .value { color:var(--gray-600); }
+.portfolio-bar-track { height:6px; background:var(--gray-200); border-radius:99px; overflow:hidden; }
+.portfolio-bar-fill  { height:100%; background:var(--pink-300); border-radius:99px; }
+.portfolio-bar-fill--green { background:var(--success); }
+.portfolio-bar-fill--blue  { background:var(--info); }
+.portfolio-bar-fill--amber { background:var(--warning); }
+
+/* Quick actions */
+.quick-actions { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+.qa-btn {
+  display:flex; flex-direction:column; align-items:center; gap:6px;
+  padding:14px 8px; background:var(--white); border:1px solid var(--gray-300);
+  border-radius:var(--r-md); cursor:pointer; transition:var(--tr); text-decoration:none;
+}
+.qa-btn:hover { background:var(--pink-100); border-color:var(--pink-200); }
+.qa-btn:hover .qa-icon { background:var(--pink-200); color:var(--pink-txt); }
+.qa-icon { width:36px; height:36px; border-radius:var(--r-sm); background:var(--gray-100); display:flex; align-items:center; justify-content:center; font-size:1rem; color:var(--gray-600); }
+.qa-label { font-size:.72rem; font-weight:600; color:var(--gray-700); text-align:center; }
+
+/* Market ticker strip */
+.ticker-strip { display:flex; gap:12px; overflow-x:auto; padding-bottom:2px; }
+.ticker-strip::-webkit-scrollbar { height:0; }
+.ticker-item { flex-shrink:0; background:var(--white); border:1px solid var(--gray-300); border-radius:var(--r-sm); padding:8px 12px; min-width:110px; }
+.ticker-sym  { font-size:.72rem; font-weight:700; color:var(--gray-800); }
+.ticker-price { font-size:.85rem; font-weight:700; color:var(--gray-900); margin:1px 0; }
+.ticker-chg  { font-size:.7rem; font-weight:600; }
+
+/* Summary donut legend */
+.donut-legend { list-style:none; padding:0; display:flex; flex-direction:column; gap:7px; }
+.donut-legend li { display:flex; align-items:center; gap:7px; font-size:.79rem; }
+.legend-dot { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+.legend-name  { flex:1; color:var(--gray-600); }
+.legend-pct   { font-weight:700; color:var(--gray-800); }
+
+@media (max-width:768px) {
+  .quick-actions { grid-template-columns:repeat(2,1fr); }
+}
