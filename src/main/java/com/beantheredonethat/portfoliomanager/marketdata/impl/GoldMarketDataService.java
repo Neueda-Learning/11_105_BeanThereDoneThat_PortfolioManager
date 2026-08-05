@@ -16,7 +16,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.Set;
 
@@ -75,6 +74,12 @@ public class GoldMarketDataService implements MarketDataService {
         try {
 
 
+            System.out.println(
+                    "Gold API key length: "
+                            + (apiKey == null ? 0 : apiKey.length())
+            );
+
+
             HttpHeaders headers =
                     new HttpHeaders();
 
@@ -85,10 +90,17 @@ public class GoldMarketDataService implements MarketDataService {
             );
 
 
+            headers.set(
+                    "User-Agent",
+                    "Mozilla/5.0"
+            );
+
+
             HttpEntity<String> entity =
                     new HttpEntity<>(
                             headers
                     );
+
 
 
             System.out.println(
@@ -108,6 +120,13 @@ public class GoldMarketDataService implements MarketDataService {
 
 
 
+            System.out.println(
+                    "Gold API Status: "
+                            + response.getStatusCode()
+            );
+
+
+
             String body =
                     response.getBody();
 
@@ -120,7 +139,7 @@ public class GoldMarketDataService implements MarketDataService {
 
 
 
-            if (body == null) {
+            if (body == null || body.isBlank()) {
 
                 throw new MarketDataException(
                         "Empty response from Gold API"
@@ -135,13 +154,16 @@ public class GoldMarketDataService implements MarketDataService {
 
 
 
-            /*
-              GoldAPI returns price as XAU price.
-              XAU = 1 troy ounce of gold.
+            if (!root.has("price_gram_24k")) {
 
-              Convert ounce price to gram price
-              because our quantity is stored in grams.
-            */
+                throw new MarketDataException(
+                        "price_gram_24k not found in Gold API response: "
+                                + body
+                );
+
+            }
+
+
 
             BigDecimal gramPrice =
                     root.path("price_gram_24k")
@@ -158,6 +180,7 @@ public class GoldMarketDataService implements MarketDataService {
 
             MarketDataResponse responseData =
                     new MarketDataResponse();
+
 
 
             responseData.setPrice(
@@ -197,8 +220,11 @@ public class GoldMarketDataService implements MarketDataService {
         }
         catch (Exception e) {
 
+            e.printStackTrace();
+
             throw new MarketDataException(
-                    "Failed to fetch gold price from Gold API",
+                    "Failed to fetch gold price from Gold API: "
+                            + e.getMessage(),
                     e
             );
 
