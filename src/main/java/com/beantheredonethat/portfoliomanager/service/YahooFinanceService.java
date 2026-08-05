@@ -1,6 +1,11 @@
 package com.beantheredonethat.portfoliomanager.service;
 
+import com.beantheredonethat.portfoliomanager.exception.MarketDataException;
 import com.beantheredonethat.portfoliomanager.exception.YahooFinanceException;
+import com.beantheredonethat.portfoliomanager.marketdata.AssetType;
+import com.beantheredonethat.portfoliomanager.marketdata.MarketDataRequest;
+import com.beantheredonethat.portfoliomanager.marketdata.MarketDataResponse;
+import com.beantheredonethat.portfoliomanager.marketdata.MarketDataService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -17,7 +22,7 @@ import org.springframework.web.client.RestTemplate;
 import java.math.BigDecimal;
 
 @Service
-public class YahooFinanceService {
+public class YahooFinanceService implements MarketDataService {
 
     private static final Logger logger = LoggerFactory.getLogger(YahooFinanceService.class);
     private final RestTemplate restTemplate;
@@ -32,6 +37,30 @@ public class YahooFinanceService {
         this.objectMapper = new ObjectMapper();
     }
 
+    @Override
+    public java.util.Set<AssetType> supportedAssetTypes() {
+        return java.util.Set.of(AssetType.STOCK, AssetType.ETF);
+    }
+
+    @Override
+    public MarketDataResponse getCurrentPrice(MarketDataRequest request) {
+        if (request == null) {
+            throw new MarketDataException("MarketDataRequest cannot be null");
+        }
+        String symbol = request.getSymbol();
+        BigDecimal price = getCurrentPrice(symbol);
+        MarketDataResponse resp = new MarketDataResponse();
+        resp.setPrice(price);
+        resp.setCurrency(request.getCurrency());
+        resp.setTimestamp(java.time.Instant.now());
+        resp.setAssetType(request.getAssetType());
+        resp.setProviderId("YAHOO");
+        return resp;
+    }
+
+    /**
+     * Backward-compatible method kept for other callers.
+     */
     public BigDecimal getCurrentPrice(String symbol) {
         if (symbol == null || symbol.trim().isEmpty()) {
             throw new YahooFinanceException("Invalid symbol");
@@ -39,7 +68,7 @@ public class YahooFinanceService {
 
         String normalized = symbol.trim().toUpperCase();
         // Use the v8 chart endpoint which returns chart.result[0].meta.regularMarketPrice
-        String url = "https://query1.finance.yahoo.com/v8/finance/chart/" + normalized;
+            String url = "https://query1.finance.yahoo.com/v8/finance/chart/" + normalized;
 
         // Prepare headers to mimic a real browser (may help avoid some rate limiting)
         HttpHeaders headers = new HttpHeaders();
