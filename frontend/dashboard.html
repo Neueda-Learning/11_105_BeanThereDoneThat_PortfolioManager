@@ -16,14 +16,7 @@
       <div class="pm-navbar__brand-icon"><i class="bi bi-graph-up-arrow"></i></div>
       <span class="pm-navbar__brand-name">Portfolio Manager</span>
     </a>
-    <div class="pm-navbar__search">
-      <i class="bi bi-search"></i>
-      <input type="text" placeholder="Search..." aria-label="Search"/>
-    </div>
     <div class="pm-navbar__actions">
-      <button class="pm-navbar__icon-btn" title="Notifications"><i class="bi bi-bell"></i><span class="pm-navbar__badge"></span></button>
-      <button class="pm-navbar__icon-btn" title="Settings"><i class="bi bi-gear"></i></button>
-      <div class="pm-navbar__divider"></div>
       <div class="dropdown">
         <button class="pm-navbar__avatar" data-bs-toggle="dropdown" data-initials aria-expanded="false">JD</button>
         <ul class="dropdown-menu dropdown-menu-end" style="border-radius:var(--r-lg);border:1px solid var(--gray-300);min-width:190px;padding:4px;">
@@ -125,9 +118,9 @@
           <div class="pm-card__hd">
             <span class="pm-card__title"><i class="bi bi-activity"></i> Portfolio Growth</span>
             <div style="display:flex;gap:4px;">
-              <button class="pm-btn pm-btn--outline pm-btn--sm active-period" style="border-radius:4px;">1M</button>
-              <button class="pm-btn pm-btn--outline pm-btn--sm" style="border-radius:4px;">3M</button>
-              <button class="pm-btn pm-btn--outline pm-btn--sm" style="border-radius:4px;">1Y</button>
+              <button class="pm-btn pm-btn--outline pm-btn--sm active-period" data-growth-period="1" style="border-radius:4px;">1M</button>
+              <button class="pm-btn pm-btn--outline pm-btn--sm" data-growth-period="3" style="border-radius:4px;">3M</button>
+              <button class="pm-btn pm-btn--outline pm-btn--sm" data-growth-period="12" style="border-radius:4px;">1Y</button>
             </div>
           </div>
           <div class="pm-card__bd">
@@ -141,40 +134,10 @@
         <div class="pm-card h-100">
           <div class="pm-card__hd"><span class="pm-card__title"><i class="bi bi-pie-chart-fill"></i> Allocation</span></div>
           <div class="pm-card__bd">
-            <div style="height:160px;display:flex;align-items:center;justify-content:center;background:var(--gray-50);border-radius:var(--r-sm);border:1px dashed var(--gray-300);margin-bottom:14px;">
+            <div style="height:240px;display:flex;align-items:center;justify-content:center;background:var(--gray-50);border-radius:var(--r-sm);border:1px dashed var(--gray-300);">
               <canvas id="allocChart"></canvas>
             </div>
-            <ul style="list-style:none;padding:0;display:flex;flex-direction:column;gap:6px;">
-              <li style="display:flex;align-items:center;gap:7px;font-size:.79rem;"><span style="width:9px;height:9px;border-radius:50%;background:var(--pink-300);flex-shrink:0;"></span><span style="flex:1;color:var(--gray-600);">Stocks</span><span style="font-weight:700;">61%</span></li>
-              <li style="display:flex;align-items:center;gap:7px;font-size:.79rem;"><span style="width:9px;height:9px;border-radius:50%;background:var(--info);flex-shrink:0;"></span><span style="flex:1;color:var(--gray-600);">Mutual Funds</span><span style="font-weight:700;">15%</span></li>
-              <li style="display:flex;align-items:center;gap:7px;font-size:.79rem;"><span style="width:9px;height:9px;border-radius:50%;background:var(--warning);flex-shrink:0;"></span><span style="flex:1;color:var(--gray-600);">Cryptocurrency</span><span style="font-weight:700;">24%</span></li>
-            </ul>
           </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Quick Actions -->
-    <div class="pm-card mb-4">
-      <div class="pm-card__hd"><span class="pm-card__title"><i class="bi bi-lightning-fill"></i> Quick Actions</span></div>
-      <div class="pm-card__bd">
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;">
-          <a href="add-investment.html" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:var(--white);border:1px solid var(--gray-300);border-radius:var(--r-md);cursor:pointer;transition:var(--tr);text-decoration:none;" onmouseover="this.style.background='var(--pink-100)';this.style.borderColor='var(--pink-200)'" onmouseout="this.style.background='var(--white)';this.style.borderColor='var(--gray-300)'">
-            <div style="width:36px;height:36px;border-radius:6px;background:var(--pink-100);display:flex;align-items:center;justify-content:center;font-size:1rem;color:var(--pink-txt);"><i class="bi bi-plus-circle-fill"></i></div>
-            <span style="font-size:.72rem;font-weight:600;color:var(--gray-700);text-align:center;">Add Investment</span>
-          </a>
-          <a href="transactions.html" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:var(--white);border:1px solid var(--gray-300);border-radius:var(--r-md);cursor:pointer;transition:var(--tr);text-decoration:none;" onmouseover="this.style.background='var(--pink-100)';this.style.borderColor='var(--pink-200)'" onmouseout="this.style.background='var(--white)';this.style.borderColor='var(--gray-300)'">
-            <div style="width:36px;height:36px;border-radius:6px;background:var(--info-bg);display:flex;align-items:center;justify-content:center;font-size:1rem;color:var(--info);"><i class="bi bi-arrow-left-right"></i></div>
-            <span style="font-size:.72rem;font-weight:600;color:var(--gray-700);text-align:center;">Transactions</span>
-          </a>
-          <a href="analytics.html" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:var(--white);border:1px solid var(--gray-300);border-radius:var(--r-md);cursor:pointer;transition:var(--tr);text-decoration:none;" onmouseover="this.style.background='var(--pink-100)';this.style.borderColor='var(--pink-200)'" onmouseout="this.style.background='var(--white)';this.style.borderColor='var(--gray-300)'">
-            <div style="width:36px;height:36px;border-radius:6px;background:var(--success-bg);display:flex;align-items:center;justify-content:center;font-size:1rem;color:var(--success);"><i class="bi bi-pie-chart-fill"></i></div>
-            <span style="font-size:.72rem;font-weight:600;color:var(--gray-700);text-align:center;">Analytics</span>
-          </a>
-          <a href="portfolios.html" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;background:var(--white);border:1px solid var(--gray-300);border-radius:var(--r-md);cursor:pointer;transition:var(--tr);text-decoration:none;" onmouseover="this.style.background='var(--pink-100)';this.style.borderColor='var(--pink-200)'" onmouseout="this.style.background='var(--white)';this.style.borderColor='var(--gray-300)'">
-            <div style="width:36px;height:36px;border-radius:6px;background:var(--warning-bg);display:flex;align-items:center;justify-content:center;font-size:1rem;color:var(--warning);"><i class="bi bi-folder2-open"></i></div>
-            <span style="font-size:.72rem;font-weight:600;color:var(--gray-700);text-align:center;">Portfolios</span>
-          </a>
         </div>
       </div>
     </div>

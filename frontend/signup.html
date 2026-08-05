@@ -112,8 +112,7 @@
             type="tel"
             id="phone"
             class="pm-input"
-            placeholder="9876543210"
-            maxlength="10"
+            placeholder="+1 (555) 123-4567"
             required/>
 
         </div>
@@ -278,9 +277,11 @@ return;
 
 
 
-if(!/^[0-9]{10}$/.test(phone)){
+const phoneDigits = (phone.match(/\d/g) || []).length;
 
-msg.textContent="Phone number must contain exactly 10 digits.";
+if(!/^[+()\-\s0-9]+$/.test(phone) || phoneDigits < 7 || phoneDigits > 15){
+
+msg.textContent="Phone number must be 7 to 15 digits and may include +, spaces, hyphens, or parentheses.";
 
 alertBox.classList.remove("d-none");
 

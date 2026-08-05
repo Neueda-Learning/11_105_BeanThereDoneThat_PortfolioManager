@@ -84,6 +84,14 @@ public class InvestmentRepository {
         return results.isEmpty() ? Optional.empty() : Optional.of(results.get(0));
     }
 
+    public Optional<Investment> findInvestmentByIdAndCustomerId(Integer investmentId, Integer customerId) {
+        String sql = "SELECT i.* FROM Investment i " +
+                "JOIN Portfolio p ON i.portfolio_id = p.portfolio_id " +
+                "WHERE i.investment_id = ? AND p.customer_id = ?";
+        List<Investment> results = jdbcTemplate.query(sql, investmentRowMapper, investmentId, customerId);
+        return results.isEmpty() ? Optional.empty() : Optional.of(results.get(0));
+    }
+
     public List<Investment> findAllInvestments() {
         return jdbcTemplate.query("SELECT * FROM Investment", investmentRowMapper);
     }
@@ -92,13 +100,34 @@ public class InvestmentRepository {
         return jdbcTemplate.query("SELECT * FROM Investment WHERE portfolio_id = ?", investmentRowMapper, portfolioId);
     }
 
+    public List<Investment> findByPortfolioIdAndCustomerId(Integer portfolioId, Integer customerId) {
+        String sql = "SELECT i.* FROM Investment i " +
+                "JOIN Portfolio p ON i.portfolio_id = p.portfolio_id " +
+                "WHERE i.portfolio_id = ? AND p.customer_id = ?";
+        return jdbcTemplate.query(sql, investmentRowMapper, portfolioId, customerId);
+    }
+
+    public List<Investment> findByCustomerId(Integer customerId) {
+        String sql = "SELECT i.* FROM Investment i " +
+                "JOIN Portfolio p ON i.portfolio_id = p.portfolio_id " +
+                "WHERE p.customer_id = ?";
+        return jdbcTemplate.query(sql, investmentRowMapper, customerId);
+    }
+
+    public int countByCustomerId(Integer customerId) {
+        String sql = "SELECT COUNT(*) FROM Investment i " +
+                "JOIN Portfolio p ON i.portfolio_id = p.portfolio_id " +
+                "WHERE p.customer_id = ?";
+        Integer count = jdbcTemplate.queryForObject(sql, Integer.class, customerId);
+        return count == null ? 0 : count;
+    }
+
     public void updateInvestment(Investment investment) {
-        String sql = "UPDATE Investment SET quantity = ?, purchase_price = ?, purchase_date = ?, asset_type = ?, custom_asset_type = ?, invested_amount = ?, scheme_code = ? WHERE investment_id = ?";
+        String sql = "UPDATE Investment SET quantity = ?, purchase_price = ?, purchase_date = ?, custom_asset_type = ?, invested_amount = ?, scheme_code = ? WHERE investment_id = ?";
         jdbcTemplate.update(sql,
                 investment.getQuantity(),
                 investment.getPurchasePrice(),
                 investment.getPurchaseDate() == null ? null : Date.valueOf(investment.getPurchaseDate()),
-                investment.getAssetType(),
                 investment.getCustomAssetType(),
                 investment.getInvestedAmount(),
                 investment.getSchemeCode(),

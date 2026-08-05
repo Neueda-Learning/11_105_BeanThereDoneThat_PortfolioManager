@@ -5,6 +5,8 @@ import java.math.BigDecimal;
 public class RiskAnalysisResponse {
 
     private String symbol;
+    private String exchange;
+    private String currency;
     private Integer portfolioId;
     private BigDecimal portfolioValue;
     private BigDecimal annualizedVolatility;
@@ -22,6 +24,22 @@ public class RiskAnalysisResponse {
 
     public void setSymbol(String symbol) {
         this.symbol = symbol;
+    }
+
+    public String getExchange() {
+        return exchange;
+    }
+
+    public void setExchange(String exchange) {
+        this.exchange = exchange;
+    }
+
+    public String getCurrency() {
+        return currency;
+    }
+
+    public void setCurrency(String currency) {
+        this.currency = currency;
     }
 
     public Integer getPortfolioId() {

@@ -15,14 +15,7 @@
       <div class="pm-navbar__brand-icon"><i class="bi bi-graph-up-arrow"></i></div>
       <span class="pm-navbar__brand-name">Portfolio Manager</span>
     </a>
-    <div class="pm-navbar__search">
-      <i class="bi bi-search"></i>
-      <input type="text" placeholder="Search..." aria-label="Search"/>
-    </div>
     <div class="pm-navbar__actions">
-      <button class="pm-navbar__icon-btn" title="Notifications"><i class="bi bi-bell"></i><span class="pm-navbar__badge"></span></button>
-      <button class="pm-navbar__icon-btn" title="Settings"><i class="bi bi-gear"></i></button>
-      <div class="pm-navbar__divider"></div>
       <div class="dropdown">
         <button class="pm-navbar__avatar" data-bs-toggle="dropdown" data-initials aria-expanded="false">JD</button>
         <ul class="dropdown-menu dropdown-menu-end" style="border-radius:var(--r-lg);border:1px solid var(--gray-300);min-width:190px;padding:4px;">
@@ -71,21 +64,16 @@
 
     <!-- Profile Header -->
     <div class="pm-profile-hd mb-4">
-      <div class="pm-profile-av">JD</div>
+      <div class="pm-profile-av" id="profileAvatarInitials">--</div>
       <div style="flex:1;">
-        <div style="font-size:1.1rem;font-weight:800;color:var(--gray-900);">Jane Doe</div>
-        <div style="font-size:.83rem;color:var(--gray-500);margin-bottom:8px;">jane@example.com &bull; Joined January 2024</div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <span class="pm-badge pm-badge--pink"><i class="bi bi-person-check-fill"></i> Active Account</span>
-          <span class="pm-badge pm-badge--blue"><i class="bi bi-shield-check-fill"></i> Verified</span>
-        </div>
+        <div style="font-size:1.1rem;font-weight:800;color:var(--gray-900);" id="profileDisplayName">--</div>
+        <div style="font-size:.83rem;color:var(--gray-500);margin-bottom:8px;"><span id="profileDisplayEmail">--</span></div>
       </div>
-      <button class="pm-btn pm-btn--outline" data-bs-toggle="modal" data-bs-target="#avatarModal"><i class="bi bi-camera-fill"></i> Change Photo</button>
     </div>
 
     <div class="row g-3">
       <!-- Personal Info -->
-      <div class="col-12 col-xl-6">
+      <div class="col-12">
         <div class="pm-card">
           <div class="pm-card__hd">
             <span class="pm-card__title"><i class="bi bi-person-fill"></i> Personal Information</span>
@@ -96,19 +84,19 @@
               <div class="row g-3">
                 <div class="col-6">
                   <label class="pm-label">First Name</label>
-                  <input type="text" class="pm-input" value="Jane" id="pFirstName" readonly/>
+                  <input type="text" class="pm-input" value="" id="pFirstName" readonly/>
                 </div>
                 <div class="col-6">
                   <label class="pm-label">Last Name</label>
-                  <input type="text" class="pm-input" value="Doe" id="pLastName" readonly/>
+                  <input type="text" class="pm-input" value="" id="pLastName" readonly/>
                 </div>
                 <div class="col-12">
                   <label class="pm-label">Email Address</label>
-                  <input type="email" class="pm-input" value="jane@example.com" id="pEmail" readonly/>
+                  <input type="email" class="pm-input" value="" id="pEmail" readonly/>
                 </div>
                 <div class="col-12">
                   <label class="pm-label">Phone Number</label>
-                  <input type="tel" class="pm-input" value="+91 98765 43210" id="pPhone" readonly/>
+                  <input type="tel" class="pm-input" value="" id="pPhone" readonly/>
                 </div>
               </div>
               <div class="mt-3 d-none" id="saveRow">
@@ -121,49 +109,63 @@
       </div>
 
       <!-- Change Password -->
-      <div class="col-12 col-xl-6">
+      <div class="col-12">
         <div class="pm-card">
           <div class="pm-card__hd"><span class="pm-card__title"><i class="bi bi-lock-fill"></i> Change Password</span></div>
           <div class="pm-card__bd">
+            <div id="pwdAlert" class="alert d-none" role="alert"></div>
             <form id="pwdForm">
-              <div class="mb-3"><label class="pm-label">Current Password <span class="req">*</span></label><input type="password" class="pm-input" placeholder="Enter current password" required/></div>
-              <div class="mb-3"><label class="pm-label">New Password <span class="req">*</span></label><input type="password" class="pm-input" placeholder="Min. 8 characters" required minlength="8"/></div>
-              <div class="mb-4"><label class="pm-label">Confirm New Password <span class="req">*</span></label><input type="password" class="pm-input" placeholder="Repeat new password" required/></div>
-              <button type="submit" class="pm-btn pm-btn--primary"><i class="bi bi-shield-lock-fill"></i> Update Password</button>
+              <div class="mb-3"><label class="pm-label">Current Password <span class="req">*</span></label><input type="password" class="pm-input" id="currentPassword" placeholder="Enter current password" required/></div>
+              <div class="mb-3"><label class="pm-label">New Password <span class="req">*</span></label><input type="password" class="pm-input" id="newPassword" placeholder="Min. 8 characters" required minlength="8"/></div>
+              <div class="mb-4"><label class="pm-label">Confirm New Password <span class="req">*</span></label><input type="password" class="pm-input" id="confirmNewPassword" placeholder="Repeat new password" required/></div>
+              <button type="submit" class="pm-btn pm-btn--primary" id="pwdSubmitBtn"><i class="bi bi-shield-lock-fill"></i> Update Password</button>
             </form>
           </div>
         </div>
       </div>
 
       <!-- Account Stats -->
-      <div class="col-12 col-xl-6">
+      <div class="col-12">
         <div class="pm-card">
           <div class="pm-card__hd"><span class="pm-card__title"><i class="bi bi-bar-chart-fill"></i> Account Summary</span></div>
           <div class="pm-card__bd">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-              <div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:var(--r-sm);padding:12px;"><div style="font-size:.7rem;color:var(--gray-500);text-transform:uppercase;letter-spacing:.7px;margin-bottom:3px;">Portfolios</div><div style="font-weight:800;font-size:1.2rem;">3</div></div>
-              <div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:var(--r-sm);padding:12px;"><div style="font-size:.7rem;color:var(--gray-500);text-transform:uppercase;letter-spacing:.7px;margin-bottom:3px;">Investments</div><div style="font-weight:800;font-size:1.2rem;">5</div></div>
-              <div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:var(--r-sm);padding:12px;"><div style="font-size:.7rem;color:var(--gray-500);text-transform:uppercase;letter-spacing:.7px;margin-bottom:3px;">Transactions</div><div style="font-weight:800;font-size:1.2rem;">5</div></div>
-              <div style="background:var(--gray-50);border:1px solid var(--gray-200);border-radius:var(--r-sm);padding:12px;"><div style="font-size:.7rem;color:var(--gray-500);text-transform:uppercase;letter-spacing:.7px;margin-bottom:3px;">Member Since</div><div style="font-weight:800;font-size:.9rem;">Jan 2024</div></div>
+            <div class="row g-2">
+              <div class="col-12 col-md-4">
+                <div style="height:100%;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:var(--r-sm);padding:12px;"><div style="font-size:.7rem;color:var(--gray-500);text-transform:uppercase;letter-spacing:.7px;margin-bottom:3px;">Portfolios</div><div style="font-weight:800;font-size:1.2rem;" id="summaryPortfolios">0</div></div>
+              </div>
+              <div class="col-12 col-md-4">
+                <div style="height:100%;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:var(--r-sm);padding:12px;"><div style="font-size:.7rem;color:var(--gray-500);text-transform:uppercase;letter-spacing:.7px;margin-bottom:3px;">Investments</div><div style="font-weight:800;font-size:1.2rem;" id="summaryInvestments">0</div></div>
+              </div>
+              <div class="col-12 col-md-4">
+                <div style="height:100%;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:var(--r-sm);padding:12px;"><div style="font-size:.7rem;color:var(--gray-500);text-transform:uppercase;letter-spacing:.7px;margin-bottom:3px;">Transactions</div><div style="font-weight:800;font-size:1.2rem;" id="summaryTransactions">0</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-12">
+        <div class="pm-card">
+          <div class="pm-card__hd"><span class="pm-card__title"><i class="bi bi-download"></i> Export Data</span></div>
+          <div class="pm-card__bd">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:12px;border:1px solid var(--gray-300);border-radius:var(--r-sm);">
+              <div><div style="font-size:.83rem;font-weight:600;color:var(--gray-800);">Export All Data</div><div style="font-size:.75rem;color:var(--gray-500);">Download your profile, portfolios, investments, and transactions as CSV</div></div>
+              <button class="pm-btn pm-btn--outline pm-btn--sm" id="exportDataBtn"><i class="bi bi-download"></i> Export CSV</button>
             </div>
           </div>
         </div>
       </div>
 
       <!-- Danger Zone -->
-      <div class="col-12 col-xl-6">
+      <div class="col-12">
         <div class="pm-card" style="border-color:#FFCDD2;">
           <div class="pm-card__hd" style="background:#FFF8F8;"><span class="pm-card__title" style="color:var(--danger);"><i class="bi bi-exclamation-triangle-fill" style="color:var(--danger);"></i> Danger Zone</span></div>
           <div class="pm-card__bd">
             <p style="font-size:.83rem;color:var(--gray-600);margin-bottom:14px;">These actions are irreversible. Please proceed with caution.</p>
             <div style="display:flex;flex-direction:column;gap:10px;">
-              <div style="display:flex;align-items:center;justify-content:space-between;padding:12px;border:1px solid var(--gray-300);border-radius:var(--r-sm);">
-                <div><div style="font-size:.83rem;font-weight:600;color:var(--gray-800);">Export All Data</div><div style="font-size:.75rem;color:var(--gray-500);">Download all your portfolio data as CSV</div></div>
-                <button class="pm-btn pm-btn--outline pm-btn--sm"><i class="bi bi-download"></i> Export</button>
-              </div>
               <div style="display:flex;align-items:center;justify-content:space-between;padding:12px;border:1px solid #FFCDD2;border-radius:var(--r-sm);background:#FFF8F8;">
                 <div><div style="font-size:.83rem;font-weight:600;color:var(--danger);">Delete Account</div><div style="font-size:.75rem;color:var(--gray-500);">Permanently delete your account and all data</div></div>
-                <button class="pm-btn pm-btn--danger pm-btn--sm"><i class="bi bi-trash3-fill"></i> Delete</button>
+                <button class="pm-btn pm-btn--danger pm-btn--sm" id="deleteAccountBtn"><i class="bi bi-trash3-fill"></i> Delete</button>
               </div>
             </div>
           </div>
@@ -175,6 +177,7 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
   <script src="js/api.js"></script>
   <script src="js/auth.js"></script>
+  <script src="js/profile.js"></script>
 
 
   <script>

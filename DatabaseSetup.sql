@@ -67,4 +67,4 @@ CREATE TABLE Investment_Transaction (
 
 #ALTER TABLE Investment ADD COLUMN Currency VARCHAR(10);
 
-#ALTER TABLE Investment ADD COLUMN scheme_code VARCHAR(50) NULL;
+ALTER TABLE Investment ADD COLUMN scheme_code VARCHAR(50) NULL;

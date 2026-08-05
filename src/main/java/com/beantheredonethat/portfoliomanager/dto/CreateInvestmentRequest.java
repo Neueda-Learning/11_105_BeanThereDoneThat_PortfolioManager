@@ -1,6 +1,7 @@
 package com.beantheredonethat.portfoliomanager.dto;
 
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -29,6 +30,9 @@ public class CreateInvestmentRequest {
 
     @NotNull(message = "Purchase date is required")
     private LocalDate purchaseDate;
+
+    @NotBlank(message = "Currency is required")
+    private String currency;
 
     @DecimalMin(value = "0.0", inclusive = false, message = "Current price must be positive")
     private BigDecimal currentPrice;
@@ -118,6 +122,14 @@ public class CreateInvestmentRequest {
 
     public void setPurchaseDate(LocalDate purchaseDate) {
         this.purchaseDate = purchaseDate;
+    }
+
+    public String getCurrency() {
+        return currency;
+    }
+
+    public void setCurrency(String currency) {
+        this.currency = currency;
     }
 
     public BigDecimal getCurrentPrice() {
