@@ -8,11 +8,18 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import jakarta.annotation.PostConstruct;
 
 import java.util.List;
 
+
+
 @Configuration
 public class SecurityConfig {
+    @PostConstruct
+public void checkLoaded() {
+    System.out.println("######## SECURITY CONFIG LOADED ########");
+}
 
     @Bean
     public BCryptPasswordEncoder passwordEncoder() {
