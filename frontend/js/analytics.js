@@ -11,6 +11,9 @@ let sparkTotalValueRef = null;
 let sparkRoiRef = null;
 let sparkProfitLossRef = null;
 let sparkRiskRef = null;
+const analyticsCurrencyController = window.PMCurrency
+  ? window.PMCurrency.createDisplayController('INR')
+  : null;
 
 const analyticsState = {
   portfolios: [],
@@ -19,6 +22,8 @@ const analyticsState = {
   selectedPortfolioId: null,
   mode: 'portfolio',
   currentRisk: null,
+  displayCurrency: 'INR',
+  controlsBound: false,
 };
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -29,6 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initNavbarUser();
   }
 
+  initializeAnalyticsCurrencyControl();
   loadAnalyticsDashboard();
 });
 
@@ -49,6 +55,11 @@ async function loadAnalyticsDashboard() {
     analyticsState.investments = Array.isArray(investmentsResponse) ? investmentsResponse : [];
     analyticsState.transactions = Array.isArray(transactionsResponse) ? transactionsResponse : [];
     analyticsState.portfolios = Array.isArray(portfoliosResponse) ? portfoliosResponse : [];
+
+    if (analyticsCurrencyController) {
+      await analyticsCurrencyController.preloadFromItems(analyticsState.investments, (item) => item && item.currency);
+      await analyticsCurrencyController.preloadFromCurrencies(['INR']);
+    }
 
     const timeline = buildTimelineData(analyticsState.investments, analyticsState.transactions);
     renderPortfolioPerformanceTimeline(timeline);
@@ -89,6 +100,8 @@ async function loadAnalyticsDashboard() {
 }
 
 function wireAnalyticsControls() {
+  if (analyticsState.controlsBound) return;
+
   const portfolioBtn = document.getElementById('analyzePortfolioBtn');
   const assetBtn = document.getElementById('analyzeAssetBtn');
   const assetRunBtn = document.getElementById('runAssetAnalysisBtn');
@@ -131,6 +144,32 @@ function wireAnalyticsControls() {
       }
     });
   }
+
+  analyticsState.controlsBound = true;
+}
+
+function initializeAnalyticsCurrencyControl() {
+  const select = document.getElementById('analyticsDisplayCurrency');
+  if (!select || !window.PMCurrency) return;
+
+  window.PMCurrency.populateCurrencySelect(select, analyticsState.displayCurrency);
+
+  select.addEventListener('change', async (event) => {
+    analyticsState.displayCurrency = window.PMCurrency.normalizeCurrencyCode(event.target.value) || 'INR';
+    if (analyticsCurrencyController) {
+      analyticsCurrencyController.setCurrency(analyticsState.displayCurrency);
+      await analyticsCurrencyController.preloadFromItems(analyticsState.investments, (item) => item && item.currency);
+      await analyticsCurrencyController.preloadFromCurrencies(['INR']);
+    }
+
+    const timeline = buildTimelineData(analyticsState.investments, analyticsState.transactions);
+    renderPortfolioPerformanceTimeline(timeline);
+    renderProfitLossTrend(timeline);
+    renderAssetGrowthTimeline(timeline.assetLines);
+    renderTransactionActivityTrend(timeline.transactionTrend);
+    renderInsights(analyticsState.investments, analyticsState.portfolios);
+    renderBackendRiskData(analyticsState.currentRisk, analyticsState.mode);
+  });
 }
 
 function initializePortfolioSelector() {
@@ -242,7 +281,7 @@ function normalizeRiskResponse(payload) {
 }
 
 function setInitialKpiState() {
-  setText('kpiTotalValue', '₹0');
+  setText('kpiTotalValue', formatAnalyticsMoney(0));
   setText('kpiRoi', '0.00%');
   setText('kpiProfitLoss', '0.00%');
   setText('kpiRiskScore', '0.0000');
@@ -270,7 +309,7 @@ function renderBackendRiskData(riskData, mode) {
   const timeline = buildTimelineData(analyticsState.investments, analyticsState.transactions);
   renderKpiCards(risk, timeline, isAssetMode);
 
-  setText('riskPortfolioValue', isAssetMode ? 'N/A' : formatINR(risk.portfolioValue));
+  setText('riskPortfolioValue', isAssetMode ? 'N/A' : formatAnalyticsMoney(convertAnalyticsAmount(risk.portfolioValue, risk.currency || 'INR')));
   setText('riskAverageReturn', formatPercent(risk.averageAnnualReturn));
   setText('riskAnnualizedVolatility', formatPercent(risk.annualizedVolatility));
   setText('riskMaximumDrawdown', formatPercent(risk.maximumDrawdown));
@@ -289,7 +328,8 @@ function renderBackendRiskData(riskData, mode) {
 }
 
 function renderKpiCards(riskData, timeline, isAssetMode) {
-  animateCount('kpiTotalValue', isAssetMode ? 0 : riskData.portfolioValue, formatINR);
+  const displayPortfolioValue = convertAnalyticsAmount(riskData.portfolioValue, riskData.currency || 'INR');
+  animateCount('kpiTotalValue', isAssetMode ? 0 : displayPortfolioValue, formatAnalyticsMoney);
   animateCount('kpiRoi', riskData.averageAnnualReturn, (value) => `${value.toFixed(2)}%`);
   animateCount('kpiProfitLoss', riskData.annualizedVolatility, (value) => `${value.toFixed(2)}%`);
   animateCount('kpiRiskScore', riskData.sharpeRatio, (value) => value.toFixed(4));
@@ -623,21 +663,21 @@ function renderInsights(investments, portfolios) {
     {
       title: 'Best Performing Asset',
       value: best ? (best.companyName || best.symbol || 'N/A') : 'N/A',
-      sub: best ? `P/L: ${formatSignedINR(best.profitLoss)}` : 'No data',
+      sub: best ? `P/L: ${formatSignedMoney(convertAnalyticsAmount(best.profitLoss, best.currency))}` : 'No data',
       icon: 'graph-up-arrow',
       badgeClass: 'bg-success-subtle text-success-emphasis',
     },
     {
       title: 'Worst Performing Asset',
       value: worst ? (worst.companyName || worst.symbol || 'N/A') : 'N/A',
-      sub: worst ? `P/L: ${formatSignedINR(worst.profitLoss)}` : 'No data',
+      sub: worst ? `P/L: ${formatSignedMoney(convertAnalyticsAmount(worst.profitLoss, worst.currency))}` : 'No data',
       icon: 'graph-down-arrow',
       badgeClass: 'bg-danger-subtle text-danger-emphasis',
     },
     {
       title: 'Highest Investment',
       value: highestInvestment ? (highestInvestment.companyName || highestInvestment.symbol || 'N/A') : 'N/A',
-      sub: highestInvestment ? `Invested: ${formatINR(highestInvestment.investedAmount)}` : 'No data',
+      sub: highestInvestment ? `Invested: ${formatAnalyticsMoney(convertAnalyticsAmount(highestInvestment.investedAmount, highestInvestment.currency))}` : 'No data',
       icon: 'currency-rupee',
       badgeClass: 'bg-info-subtle text-info-emphasis',
     },
@@ -688,8 +728,8 @@ function buildTimelineData(investments, transactions) {
   const currentSeries = [];
 
   normalizedInvestments.forEach((item) => {
-    cumulativeInvested += toNumber(item.investedAmount);
-    cumulativeCurrent += toNumber(item.currentValue);
+    cumulativeInvested += convertAnalyticsAmount(item.investedAmount, item.currency);
+    cumulativeCurrent += convertAnalyticsAmount(item.currentValue, item.currency);
     investedSeries.push(cumulativeInvested);
     currentSeries.push(cumulativeCurrent);
   });
@@ -718,7 +758,7 @@ function buildTimelineData(investments, transactions) {
 
   const topAssets = aggregatedAssets
     .slice()
-    .sort((a, b) => toNumber(b.currentValue) - toNumber(a.currentValue))
+    .sort((a, b) => convertAnalyticsAmount(b.currentValue, b.currency) - convertAnalyticsAmount(a.currentValue, a.currency))
     .slice(0, 6);
 
   const palette = ['#5C6BC0', '#26A69A', '#EC407A', '#42A5F5', '#FFA726', '#AB47BC'];
@@ -726,8 +766,8 @@ function buildTimelineData(investments, transactions) {
     labels,
     datasets: topAssets.length
       ? topAssets.map((asset, index) => {
-          const start = toNumber(asset.investedAmount);
-          const end = toNumber(asset.currentValue);
+          const start = convertAnalyticsAmount(asset.investedAmount, asset.currency);
+          const end = convertAnalyticsAmount(asset.currentValue, asset.currency);
           const points = labels.map((_, pointIndex) => {
             if (labels.length === 1) return end;
             const progress = pointIndex / (labels.length - 1);
@@ -913,15 +953,40 @@ function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
-function formatINR(value) {
+function convertAnalyticsAmount(value, sourceCurrency) {
+  const amount = toNumber(value);
+  if (!analyticsCurrencyController) return amount;
+  return analyticsCurrencyController.convert(amount, sourceCurrency || 'INR');
+}
+
+function formatAnalyticsMoney(value) {
+  const amount = toNumber(value);
+  const currency = analyticsCurrencyController
+    ? analyticsCurrencyController.getCurrency()
+    : (analyticsState.displayCurrency || 'INR');
+
+  if (window.PMCurrency && typeof window.PMCurrency.formatMoney === 'function') {
+    return window.PMCurrency.formatMoney(amount, currency);
+  }
+
+  if (currency === 'INR') {
+    return `₹${amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }
+
+  return amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function formatSignedMoney(value) {
   const n = toNumber(value);
-  if (n === 0) return '₹0';
-  return `₹${n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return `${n > 0 ? '+' : ''}${formatAnalyticsMoney(n)}`;
+}
+
+function formatINR(value) {
+  return formatAnalyticsMoney(value);
 }
 
 function formatSignedINR(value) {
-  const n = toNumber(value);
-  return `${n > 0 ? '+' : ''}${formatINR(n)}`;
+  return formatSignedMoney(value);
 }
 
 function formatPercent(value) {

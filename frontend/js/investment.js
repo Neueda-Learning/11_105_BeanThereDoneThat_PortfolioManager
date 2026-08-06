@@ -7,21 +7,10 @@ let allInvestments = [];
 let filteredInvestments = [];
 let deleteTargetId = null;
 let currentDisplayCurrency = 'INR';
-let exchangeRates = {};
 let selectedPortfolioId = 0;
-
-const SUPPORTED_CURRENCIES = [
-  'INR',
-  'USD',
-  'EUR',
-  'GBP',
-  'JPY',
-  'AUD',
-  'CAD',
-  'CHF',
-  'SGD',
-  'AED',
-];
+const investmentCurrencyController = window.PMCurrency
+  ? window.PMCurrency.createDisplayController('INR')
+  : null;
 
 const IDENTIFIER_MODES = {
   SYMBOL: 'symbol',
@@ -145,7 +134,10 @@ function wireFilters() {
   }
   if (displayCurrency) {
     displayCurrency.addEventListener('change', async (event) => {
-      currentDisplayCurrency = String(event.target.value || 'INR').trim().toUpperCase();
+      currentDisplayCurrency = normalizeCurrencyCode(event.target.value) || 'INR';
+      if (investmentCurrencyController) {
+        investmentCurrencyController.setCurrency(currentDisplayCurrency);
+      }
       await preloadDisplayRates(allInvestments);
       renderInvestmentsTable(filteredInvestments);
       renderSummaryCards(allInvestments);
@@ -742,10 +734,14 @@ function toNullablePositiveNumber(value) {
 }
 
 function formatMoney(value, currency = currentDisplayCurrency) {
+  const resolvedCurrency = normalizeCurrencyCode(currency) || 'INR';
+  if (window.PMCurrency && typeof window.PMCurrency.formatMoney === 'function') {
+    return window.PMCurrency.formatMoney(value, resolvedCurrency);
+  }
   const number = toNumber(value);
-  return new Intl.NumberFormat(getCurrencyLocale(currency), {
+  return new Intl.NumberFormat(getCurrencyLocale(resolvedCurrency), {
     style: 'currency',
-    currency: currency || 'INR',
+    currency: resolvedCurrency,
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(number);
@@ -779,74 +775,35 @@ function assetTypeBadge(type) {
 }
 
 function populateCurrencySelect(selectId, selectedCurrency) {
-  const select = document.getElementById(selectId);
-  if (!select) return;
-
-  const normalizedSelected = normalizeCurrencyCode(selectedCurrency) || 'INR';
-  select.innerHTML = SUPPORTED_CURRENCIES.map((currency) => (
-    `<option value="${currency}"${currency === normalizedSelected ? ' selected' : ''}>${currency}</option>`
-  )).join('');
+  if (window.PMCurrency) {
+    window.PMCurrency.populateCurrencySelect(selectId, selectedCurrency);
+  }
 }
 
 function convertForDisplay(value, sourceCurrency) {
-  const amount = toNumber(value);
-  const fromCurrency = normalizeCurrencyCode(sourceCurrency) || 'INR';
-  const toCurrency = normalizeCurrencyCode(currentDisplayCurrency) || 'INR';
-
-  if (!amount || fromCurrency === toCurrency) {
-    return amount;
+  if (investmentCurrencyController) {
+    return investmentCurrencyController.convert(value, sourceCurrency);
   }
-
-  const rate = getCachedRate(fromCurrency, toCurrency);
-  if (!rate || rate <= 0) {
-    return amount;
-  }
-
-  return amount * rate;
+  return toNumber(value);
 }
 
 async function preloadDisplayRates(list) {
-  const targetCurrency = normalizeCurrencyCode(currentDisplayCurrency) || 'INR';
-  const sourceCurrencies = [...new Set((list || [])
-    .map((item) => normalizeCurrencyCode(item && item.currency))
-    .filter(Boolean))];
-
-  const lookups = sourceCurrencies
-    .filter((fromCurrency) => fromCurrency !== targetCurrency)
-    .map(async (fromCurrency) => {
-      const cacheKey = `${fromCurrency}->${targetCurrency}`;
-      if (exchangeRates[cacheKey]) {
-        return;
-      }
-
-      try {
-        const response = await InvestmentAPI.getExchangeRate(fromCurrency, targetCurrency);
-        const rate = toNumber(response && response.rate);
-        if (rate > 0) {
-          exchangeRates[cacheKey] = rate;
-        }
-      } catch (error) {
-        console.warn(`[Investments] Failed to load exchange rate ${cacheKey}:`, error);
-      }
-    });
-
-  await Promise.all(lookups);
-}
-
-function getCachedRate(fromCurrency, toCurrency) {
-  if (fromCurrency === toCurrency) {
-    return 1;
+  if (investmentCurrencyController) {
+    await investmentCurrencyController.preloadFromItems(list, (item) => item && item.currency);
   }
-  return toNumber(exchangeRates[`${fromCurrency}->${toCurrency}`]);
 }
 
 function getCurrencyLocale(currency) {
-  return currency === 'INR' ? 'en-IN' : 'en-US';
+  const normalized = normalizeCurrencyCode(currency) || 'INR';
+  return normalized === 'INR' ? 'en-IN' : 'en-US';
 }
 
 function normalizeCurrencyCode(currency) {
+  if (window.PMCurrency && typeof window.PMCurrency.normalizeCurrencyCode === 'function') {
+    return window.PMCurrency.normalizeCurrencyCode(currency);
+  }
   const normalized = String(currency || '').trim().toUpperCase();
-  return SUPPORTED_CURRENCIES.includes(normalized) ? normalized : normalized || null;
+  return normalized || null;
 }
 
 function syncAddInvestmentFormState() {

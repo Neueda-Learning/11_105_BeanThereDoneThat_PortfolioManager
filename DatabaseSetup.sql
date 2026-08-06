@@ -68,3 +68,21 @@ CREATE TABLE Investment_Transaction (
 #ALTER TABLE Investment ADD COLUMN Currency VARCHAR(10);
 
 ALTER TABLE Investment ADD COLUMN scheme_code VARCHAR(50) NULL;
+
+CREATE TABLE Milestone (
+    milestone_id INT AUTO_INCREMENT PRIMARY KEY,
+    customer_id INT NOT NULL,
+    item VARCHAR(255) NOT NULL,
+    price DECIMAL(15,2) NOT NULL,
+    image_url VARCHAR(500) NULL,
+    display_order INT NOT NULL DEFAULT 0,
+    FOREIGN KEY (customer_id) REFERENCES Customer(customer_id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE
+);
+
+ALTER TABLE Milestone
+    ADD COLUMN image_url VARCHAR(500) NULL;
+
+ALTER TABLE Milestone
+    ADD COLUMN display_order INT NOT NULL DEFAULT 0;

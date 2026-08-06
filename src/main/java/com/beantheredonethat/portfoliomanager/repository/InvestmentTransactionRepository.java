@@ -43,6 +43,9 @@ public class InvestmentTransactionRepository {
                 transaction.setAssetType(
                         rs.getString("asset_type"));
 
+                transaction.setCurrency(
+                        rs.getString("currency"));
+
                 Date date = rs.getDate("transaction_date");
 
                 transaction.setTransactionDate(
@@ -123,7 +126,7 @@ public class InvestmentTransactionRepository {
             Integer transactionId) {
 
         String sql =
-                "SELECT t.*, i.symbol, i.company_name, i.asset_type " +
+                "SELECT t.*, i.symbol, i.company_name, i.asset_type, i.currency " +
                         "FROM Investment_Transaction t " +
                         "JOIN Investment i ON t.investment_id = i.investment_id " +
                         "WHERE t.transaction_id = ?";
@@ -141,7 +144,7 @@ public class InvestmentTransactionRepository {
 
     public Optional<InvestmentTransaction> findByIdAndCustomerId(Integer transactionId, Integer customerId) {
         String sql =
-                "SELECT t.*, i.symbol, i.company_name, i.asset_type " +
+                "SELECT t.*, i.symbol, i.company_name, i.asset_type, i.currency " +
                         "FROM Investment_Transaction t " +
                         "JOIN Investment i ON t.investment_id = i.investment_id " +
                         "JOIN Portfolio p ON i.portfolio_id = p.portfolio_id " +
@@ -162,7 +165,7 @@ public class InvestmentTransactionRepository {
     public List<InvestmentTransaction> findAllTransactions() {
 
         String sql =
-                "SELECT t.*, i.symbol, i.company_name, i.asset_type " +
+                "SELECT t.*, i.symbol, i.company_name, i.asset_type, i.currency " +
                         "FROM Investment_Transaction t " +
                         "JOIN Investment i ON t.investment_id = i.investment_id";
 
@@ -174,7 +177,7 @@ public class InvestmentTransactionRepository {
     public List<InvestmentTransaction> findAllTransactionsByCustomerId(Integer customerId) {
 
         String sql =
-                "SELECT t.*, i.symbol, i.company_name, i.asset_type " +
+                "SELECT t.*, i.symbol, i.company_name, i.asset_type, i.currency " +
                         "FROM Investment_Transaction t " +
                         "JOIN Investment i ON t.investment_id = i.investment_id " +
                         "JOIN Portfolio p ON i.portfolio_id = p.portfolio_id " +
@@ -190,7 +193,7 @@ public class InvestmentTransactionRepository {
             Integer investmentId) {
 
         String sql =
-                "SELECT t.*, i.symbol, i.company_name, i.asset_type " +
+                "SELECT t.*, i.symbol, i.company_name, i.asset_type, i.currency " +
                         "FROM Investment_Transaction t " +
                         "JOIN Investment i ON t.investment_id = i.investment_id " +
                         "WHERE t.investment_id = ?";
@@ -204,7 +207,7 @@ public class InvestmentTransactionRepository {
     public List<InvestmentTransaction> findByInvestmentIdAndCustomerId(Integer investmentId, Integer customerId) {
 
         String sql =
-                "SELECT t.*, i.symbol, i.company_name, i.asset_type " +
+                "SELECT t.*, i.symbol, i.company_name, i.asset_type, i.currency " +
                         "FROM Investment_Transaction t " +
                         "JOIN Investment i ON t.investment_id = i.investment_id " +
                         "JOIN Portfolio p ON i.portfolio_id = p.portfolio_id " +
@@ -219,7 +222,7 @@ public class InvestmentTransactionRepository {
 
         public List<InvestmentTransaction> findByCustomerId(Integer customerId) {
                 String sql =
-                                "SELECT t.*, i.symbol, i.company_name, i.asset_type " +
+                                "SELECT t.*, i.symbol, i.company_name, i.asset_type, i.currency " +
                                                 "FROM Investment_Transaction t " +
                                                 "JOIN Investment i ON t.investment_id = i.investment_id " +
                                                 "JOIN Portfolio p ON i.portfolio_id = p.portfolio_id " +

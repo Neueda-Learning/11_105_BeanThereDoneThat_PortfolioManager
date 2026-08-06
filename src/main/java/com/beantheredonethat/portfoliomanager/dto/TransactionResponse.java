@@ -13,6 +13,7 @@ public class TransactionResponse {
     private String symbol;
     private String companyName;
     private String assetType;
+    private String currency;
 
     private LocalDate transactionDate;
     private String transactionType;
@@ -30,6 +31,7 @@ public class TransactionResponse {
         this.symbol = transaction.getSymbol();
         this.companyName = transaction.getCompanyName();
         this.assetType = transaction.getAssetType();
+        this.currency = transaction.getCurrency();
 
         this.transactionDate = transaction.getTransactionDate();
         this.transactionType = transaction.getTransactionType();
@@ -76,6 +78,14 @@ public class TransactionResponse {
 
     public void setAssetType(String assetType) {
         this.assetType = assetType;
+    }
+
+    public String getCurrency() {
+        return currency;
+    }
+
+    public void setCurrency(String currency) {
+        this.currency = currency;
     }
 
     public LocalDate getTransactionDate() {
