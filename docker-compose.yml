@@ -33,7 +33,7 @@ services:
       SPRING_DATASOURCE_PASSWORD: n3u3da!
 
     ports:
-      - "8080:8080"
+      - "8082:8080"
 
     networks:
       - springboot-network
