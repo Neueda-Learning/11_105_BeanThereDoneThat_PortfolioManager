@@ -24,26 +24,25 @@ pipeline {
                 }
 
 
-        stage('Stop Existing Containers') {
-            steps {
-                // reference the compose file explicitly (docker-compose.yml)
-                sh 'docker compose -f docker-compose.yml down || true'
-            }
-        }
+       stage('Stop Existing Containers') {
+                   steps {
+                       sh 'docker-compose down || true'
+                   }
+               }
 
 
-        stage('Build Docker Images') {
-            steps {
-                sh 'docker compose -f docker-compose.yml build --no-cache'
-            }
-        }
+        stage('Build Docker Image') {
+                    steps {
+                        sh 'docker-compose build --no-cache'
+                    }
+                }
 
 
         stage('Deploy') {
-            steps {
-                sh 'docker compose -f docker-compose.yml up -d'
-            }
-        }
+                     steps {
+                         sh 'docker-compose up -d'
+                     }
+                 }
 
 
         stage('Verify') {
