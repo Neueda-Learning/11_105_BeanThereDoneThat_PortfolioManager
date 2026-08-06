@@ -17,12 +17,11 @@ pipeline {
         }
 
 
-        stage('Build Spring Boot') {
-            steps {
-                // build at repository root using the Maven wrapper so CI uses project settings
-                sh './mvnw -DskipTests package'
-            }
-        }
+         stage('Build Spring Boot') {
+                    steps {
+                        sh 'mvn clean package -DskipTests'
+                    }
+                }
 
 
         stage('Stop Existing Containers') {
