@@ -5,6 +5,12 @@
 let allTransactions = [];
 let filteredTransactions = [];
 let deleteTransactionId = null;
+let currentDisplayCurrency = 'INR';
+let allInvestments = [];
+let selectedTransactionCurrency = 'INR';
+const transactionCurrencyController = window.PMCurrency
+  ? window.PMCurrency.createDisplayController('INR')
+  : null;
 
 document.addEventListener('DOMContentLoaded', () => {
   if (typeof requireAuth === 'function') {
@@ -18,6 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
   wireImportExport();
   wireCreateTransactionForm();
   wireDeleteTransactionConfirm();
+  initializeCurrencyControl();
   loadTransactions();
 });
 
@@ -25,13 +32,25 @@ async function loadTransactions() {
   const tbody = document.querySelector('#transactionTable tbody');
   if (!tbody) return;
 
-  tbody.innerHTML = '<tr><td colspan="10" style="padding:24px;text-align:center;color:var(--gray-500);"><span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Loading transactions...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="11" style="padding:24px;text-align:center;color:var(--gray-500);"><span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Loading transactions...</td></tr>';
 
   try {
-    const response = await TransactionAPI.getAll();
+    const [transactionsResponse, investmentsResponse] = await Promise.all([
+      TransactionAPI.getAll(),
+      InvestmentAPI.getAll(),
+    ]);
+
+    const response = transactionsResponse;
     console.log('Transactions API response:', response);
     allTransactions = Array.isArray(response) ? response : [];
     filteredTransactions = [...allTransactions];
+    allInvestments = Array.isArray(investmentsResponse) ? investmentsResponse : [];
+
+    if (transactionCurrencyController) {
+      await transactionCurrencyController.preloadFromItems(allTransactions, (tx) => resolveTransactionCurrency(tx));
+      await transactionCurrencyController.preloadFromItems(allInvestments, (item) => item && item.currency);
+      await transactionCurrencyController.preloadFromCurrencies(['INR']);
+    }
 
     renderTable(filteredTransactions);
     updateSummary(allTransactions);
@@ -53,13 +72,14 @@ function renderTable(rows) {
   if (!tbody) return;
 
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="10" style="padding:24px;text-align:center;color:var(--gray-500);">No transactions found.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="11" style="padding:24px;text-align:center;color:var(--gray-500);">No transactions found.</td></tr>';
     return;
   }
 
   tbody.innerHTML = rows.map((tx) => {
     const txId = toNumber(tx.transactionId);
     const type = String(tx.transactionType || 'N/A').toUpperCase();
+    const originalCurrency = resolveTransactionCurrency(tx);
     const isBuy = type === 'BUY';
     const badgeClass = isBuy ? 'pm-badge--green' : 'pm-badge--red';
     const icon = isBuy ? 'arrow-down-circle-fill' : 'arrow-up-circle-fill';
@@ -70,10 +90,11 @@ function renderTable(rows) {
         <td>${escapeHtml(tx.companyName || 'N/A')}</td>
         <td>${escapeHtml(tx.symbol || 'N/A')}</td>
         <td>${escapeHtml(tx.assetType || 'N/A')}</td>
+        <td>${escapeHtml(originalCurrency)}</td>
         <td><span class="pm-badge ${badgeClass}"><i class="bi bi-${icon}"></i> ${escapeHtml(type)}</span></td>
         <td>${formatNumber(tx.quantity)}</td>
-        <td>${formatINR(tx.transactionPrice)}</td>
-        <td style="font-weight:700;">${formatINR(tx.transactionAmount)}</td>
+        <td>${formatMoneyDisplay(convertTransactionAmount(tx.transactionPrice, originalCurrency))}</td>
+        <td style="font-weight:700;">${formatMoneyDisplay(convertTransactionAmount(tx.transactionAmount, originalCurrency))}</td>
         <td style="color:var(--gray-500);font-size:.78rem;">${formatDate(tx.transactionDate)}</td>
         <td style="text-align:center;">
           <button class="pm-icon-btn pm-icon-btn--del" title="Delete" onclick="openTransactionDelete(${txId}, '${escapeHtml(tx.symbol || tx.companyName || 'transaction')}')"><i class="bi bi-trash3-fill"></i></button>
@@ -87,12 +108,33 @@ function updateSummary(rows) {
   const total = rows.length;
   const buys = rows.filter((r) => String(r.transactionType || '').toUpperCase() === 'BUY').length;
   const sells = rows.filter((r) => String(r.transactionType || '').toUpperCase() === 'SELL').length;
-  const volume = sumBy(rows, 'transactionAmount');
+  const volume = (rows || []).reduce((sum, row) => {
+    return sum + convertTransactionAmount(row && row.transactionAmount, resolveTransactionCurrency(row));
+  }, 0);
 
   setText('summaryTotalTxns', String(total));
   setText('summaryBuyOrders', String(buys));
   setText('summarySellOrders', String(sells));
-  setText('summaryTotalVolume', formatINR(volume));
+  setText('summaryTotalVolume', formatMoneyDisplay(volume));
+}
+
+function initializeCurrencyControl() {
+  const select = document.getElementById('transactionDisplayCurrency');
+  if (!select || !window.PMCurrency) return;
+
+  window.PMCurrency.populateCurrencySelect(select, currentDisplayCurrency);
+
+  select.addEventListener('change', async (event) => {
+    currentDisplayCurrency = window.PMCurrency.normalizeCurrencyCode(event.target.value) || 'INR';
+    if (transactionCurrencyController) {
+      transactionCurrencyController.setCurrency(currentDisplayCurrency);
+      await transactionCurrencyController.preloadFromItems(allTransactions, (tx) => resolveTransactionCurrency(tx));
+      await transactionCurrencyController.preloadFromItems(allInvestments, (item) => item && item.currency);
+      await transactionCurrencyController.preloadFromCurrencies(['INR']);
+    }
+    renderTable(filteredTransactions);
+    updateSummary(allTransactions);
+  });
 }
 
 function wireFilters() {
@@ -151,8 +193,18 @@ function clearFilters() {
   if (fromDate) fromDate.value = '';
   if (toDate) toDate.value = '';
 
+  const currencySelect = document.getElementById('transactionDisplayCurrency');
+  currentDisplayCurrency = 'INR';
+  if (transactionCurrencyController) {
+    transactionCurrencyController.setCurrency(currentDisplayCurrency);
+  }
+  if (currencySelect) {
+    currencySelect.value = 'INR';
+  }
+
   filteredTransactions = [...allTransactions];
   renderTable(filteredTransactions);
+  updateSummary(allTransactions);
   setText('transactionTableInfo', `${filteredTransactions.length} records`);
   setText('transactionFooterText', `Showing ${filteredTransactions.length} of ${allTransactions.length} records`);
 }
@@ -164,6 +216,8 @@ function wireCreateTransactionForm() {
 
   modal.addEventListener('shown.bs.modal', async () => {
     await loadInvestmentOptions();
+    bindTransactionCurrencyHint();
+    syncSelectedTransactionCurrency();
   });
 
   form.addEventListener('submit', async (event) => {
@@ -176,6 +230,7 @@ function wireCreateTransactionForm() {
       quantity: toNumber(document.getElementById('createQuantity')?.value),
       transactionPrice: toNumber(document.getElementById('createTransactionPrice')?.value),
       transactionDate: String(document.getElementById('createTransactionDate')?.value || '').trim(),
+      currency: selectedTransactionCurrency,
     };
 
     if (!payload.investmentId || !payload.transactionType || payload.quantity <= 0 || payload.transactionPrice <= 0 || !payload.transactionDate) {
@@ -192,6 +247,8 @@ function wireCreateTransactionForm() {
       showPageAlert('Transaction created successfully.', 'success');
       closeModal('createTransactionModal');
       form.reset();
+      selectedTransactionCurrency = 'INR';
+      updateCreateCurrencyHint(selectedTransactionCurrency);
       await loadTransactions();
     } catch (error) {
       console.error('[Transactions] Create failed:', error);
@@ -210,6 +267,7 @@ async function loadInvestmentOptions() {
     const response = await InvestmentAPI.getAll();
     console.log('Investments API response for transaction form:', response);
     const list = Array.isArray(response) ? response : [];
+    allInvestments = list;
 
     if (!list.length) {
       select.innerHTML = '<option value="">No investments available</option>';
@@ -219,9 +277,37 @@ async function loadInvestmentOptions() {
     select.innerHTML = '<option value="">Select investment...</option>' + list.map((investment) => (
       `<option value="${escapeHtml(String(investment.investmentId || ''))}">${escapeHtml(investment.symbol || investment.companyName || `Investment ${investment.investmentId}`)}</option>`
     )).join('');
+
+    syncSelectedTransactionCurrency();
   } catch (error) {
     console.error('[Transactions] Failed to load investments for form:', error);
     select.innerHTML = '<option value="">Unable to load investments</option>';
+  }
+}
+
+function bindTransactionCurrencyHint() {
+  const select = document.getElementById('createInvestmentId');
+  if (!select || select.dataset.currencyBound === 'true') return;
+
+  select.addEventListener('change', () => {
+    syncSelectedTransactionCurrency();
+  });
+
+  select.dataset.currencyBound = 'true';
+}
+
+function syncSelectedTransactionCurrency() {
+  const select = document.getElementById('createInvestmentId');
+  const investmentId = toNumber(select && select.value);
+  const investment = (allInvestments || []).find((item) => toNumber(item && item.investmentId) === investmentId);
+  selectedTransactionCurrency = normalizeCurrencyCode(investment && investment.currency) || 'INR';
+  updateCreateCurrencyHint(selectedTransactionCurrency);
+}
+
+function updateCreateCurrencyHint(currency) {
+  const hint = document.getElementById('createTransactionPriceCurrencyHint');
+  if (hint) {
+    hint.textContent = `(${normalizeCurrencyCode(currency) || 'INR'})`;
   }
 }
 
@@ -465,10 +551,49 @@ function toNumber(value) {
 }
 
 function formatINR(value) {
-  const n = toNumber(value);
-  return n === 0
-    ? '₹0'
-    : `₹${n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return formatMoneyDisplay(value);
+}
+
+function normalizeCurrencyCode(currency) {
+  if (window.PMCurrency && typeof window.PMCurrency.normalizeCurrencyCode === 'function') {
+    return window.PMCurrency.normalizeCurrencyCode(currency);
+  }
+  const normalized = String(currency || '').trim().toUpperCase();
+  return normalized || null;
+}
+
+function resolveTransactionCurrency(transaction) {
+  const directCurrency = normalizeCurrencyCode(transaction && transaction.currency);
+  if (directCurrency) return directCurrency;
+
+  const investmentId = toNumber(transaction && transaction.investmentId);
+  if (!investmentId) return 'INR';
+
+  const investment = (allInvestments || []).find((item) => toNumber(item && item.investmentId) === investmentId);
+  return normalizeCurrencyCode(investment && investment.currency) || 'INR';
+}
+
+function convertTransactionAmount(value, sourceCurrency) {
+  const amount = toNumber(value);
+  if (!transactionCurrencyController) return amount;
+  return transactionCurrencyController.convert(amount, sourceCurrency || 'INR');
+}
+
+function formatMoneyDisplay(value) {
+  const amount = toNumber(value);
+  const currency = transactionCurrencyController
+    ? transactionCurrencyController.getCurrency()
+    : (currentDisplayCurrency || 'INR');
+
+  if (window.PMCurrency && typeof window.PMCurrency.formatMoney === 'function') {
+    return window.PMCurrency.formatMoney(amount, currency);
+  }
+
+  if (currency === 'INR') {
+    return `₹${amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }
+
+  return amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function formatNumber(value) {

@@ -227,6 +227,7 @@ public class InvestmentTransactionService {
         saved.setSymbol(investment.getSymbol());
         saved.setCompanyName(investment.getCompanyName());
         saved.setAssetType(investment.getAssetType());
+                saved.setCurrency(investment.getCurrency());
 
         return new TransactionResponse(saved);
     }

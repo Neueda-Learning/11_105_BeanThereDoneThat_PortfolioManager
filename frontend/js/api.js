@@ -581,6 +581,85 @@ const RiskAnalysisAPI = {
   },
 };
 
+/* ── Milestone ────────────────────────────────────────────── */
+const MilestoneAPI = {
+  getAll: async () => {
+    try {
+      const response = await fetch(`${API_BASE}/api/milestones`, {
+        method: 'GET',
+        headers: buildCustomerScopedHeaders(),
+      });
+      const payload = await parseApiResponse(response);
+      return payload;
+    } catch (error) {
+      throw new Error(error.message || 'Unable to fetch milestones.');
+    }
+  },
+  getNext: async () => {
+    try {
+      const response = await fetch(`${API_BASE}/api/milestones/next`, {
+        method: 'GET',
+        headers: buildCustomerScopedHeaders(),
+      });
+      const payload = await parseApiResponse(response);
+      return payload;
+    } catch (error) {
+      throw new Error(error.message || 'Unable to fetch next milestone.');
+    }
+  },
+  create: async (data) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/milestones`, {
+        method: 'POST',
+        headers: buildCustomerScopedHeaders(),
+        body: JSON.stringify(data),
+      });
+      const payload = await parseApiResponse(response);
+      return payload;
+    } catch (error) {
+      throw new Error(error.message || 'Unable to create milestone.');
+    }
+  },
+  update: async (id, data) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/milestones/${id}`, {
+        method: 'PUT',
+        headers: buildCustomerScopedHeaders(),
+        body: JSON.stringify(data),
+      });
+      const payload = await parseApiResponse(response);
+      return payload;
+    } catch (error) {
+      throw new Error(error.message || 'Unable to update milestone.');
+    }
+  },
+  reorder: async (milestoneIds) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/milestones/order`, {
+        method: 'PUT',
+        headers: buildCustomerScopedHeaders(),
+        body: JSON.stringify({ milestoneIds }),
+      });
+      const payload = await parseApiResponse(response);
+      return payload;
+    } catch (error) {
+      throw new Error(error.message || 'Unable to reorder milestones.');
+    }
+  },
+  delete: async (id) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/milestones/${id}`, {
+        method: 'DELETE',
+        headers: buildCustomerScopedHeaders(),
+      });
+      await parseApiResponse(response);
+      return true;
+    } catch (error) {
+      throw new Error(error.message || 'Unable to delete milestone.');
+    }
+  },
+};
+
 /* ── Exports ──────────────────────────────────────────────── */
 window.AuthAPI        = AuthAPI;
 window.registerCustomer = registerCustomer;
@@ -590,4 +669,5 @@ window.PortfolioAPI   = PortfolioAPI;
 window.InvestmentAPI  = InvestmentAPI;
 window.TransactionAPI = TransactionAPI;
 window.RiskAnalysisAPI = RiskAnalysisAPI;
+window.MilestoneAPI = MilestoneAPI;
 window.aggregateInvestmentsBySymbol = aggregateInvestmentsBySymbol;

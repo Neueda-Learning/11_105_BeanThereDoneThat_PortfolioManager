@@ -38,21 +38,7 @@
       <li><a href="investments.html"><i class="bi bi-bar-chart-fill"></i><span>Investments</span></a></li>
       <li><a href="transactions.html"><i class="bi bi-arrow-left-right"></i><span>Transactions</span></a></li>
       <li><a href="analytics.html"><i class="bi bi-pie-chart-fill"></i><span>Analytics</span></a></li>
-      <li><a href="profile.html"><i class="bi bi-person-fill"></i><span>Profile</span></a></li>
     </ul>
-    <div class="pm-sidebar__divider"></div>
-    <div class="pm-sidebar__section">Account</div>
-    <ul class="pm-sidebar__nav">
-      <li><a href="#" data-logout><i class="bi bi-box-arrow-right"></i><span>Sign Out</span></a></li>
-    </ul>
-    <div class="pm-sidebar__user">
-      <div class="pm-sidebar__user-av" data-initials>JD</div>
-      <div>
-        <div class="pm-sidebar__user-name" data-user-name>Jane Doe</div>
-        <div class="pm-sidebar__user-role">Investor</div>
-      </div>
-      <button class="pm-sidebar__user-exit" data-logout title="Sign out"><i class="bi bi-box-arrow-right"></i></button>
-    </div>
   </aside>
   <main class="pm-main" id="main">
     <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px;">
@@ -64,6 +50,7 @@
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <a href="add-investment.html" class="pm-btn pm-btn--primary"><i class="bi bi-plus-lg"></i> Add Investment</a>
         <a href="portfolios.html" class="pm-btn pm-btn--outline"><i class="bi bi-folder2-open"></i> Portfolios</a>
+        <select id="dashboardDisplayCurrency" class="pm-input" style="width:130px;height:34px;" aria-label="Display currency"></select>
       </div>
     </div>
 
@@ -111,10 +98,42 @@
       </div>
     </div>
 
-    <!-- Charts Row -->
-    <div class="row g-3 mb-4">
-      <div class="col-12 col-xl-8">
+    <div class="dashboard-layout">
+      <section class="dashboard-layout__milestone">
         <div class="pm-card">
+          <div class="pm-card__hd">
+            <span class="pm-card__title"><i class="bi bi-flag-fill"></i> Next Milestone</span>
+            <div style="display:flex;gap:6px;">
+              <button
+                type="button"
+                class="pm-btn pm-btn--outline pm-btn--sm"
+                id="editMilestonesBtn"
+              >
+                <i class="bi bi-list"></i> Reorder
+              </button>
+              <button
+                type="button"
+                class="pm-btn pm-btn--outline pm-btn--sm"
+                data-bs-toggle="modal"
+                data-bs-target="#addMilestoneModal"
+                id="openAddMilestoneBtn"
+              >
+                <i class="bi bi-plus-lg"></i> Add
+              </button>
+            </div>
+          </div>
+          <div class="pm-card__bd milestone-card__body" id="nextMilestoneCardBody">
+            <div class="milestone-empty-state">
+              <div class="milestone-empty-state__icon"><i class="bi bi-bullseye"></i></div>
+              <p>Add your first milestone and start tracking your progress.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="dashboard-layout__charts">
+        <div>
+          <div class="pm-card">
           <div class="pm-card__hd">
             <span class="pm-card__title"><i class="bi bi-activity"></i> Portfolio Growth</span>
             <div style="display:flex;gap:4px;">
@@ -124,28 +143,27 @@
             </div>
           </div>
           <div class="pm-card__bd">
-            <div style="height:240px;display:flex;align-items:center;justify-content:center;background:var(--gray-50);border-radius:var(--r-sm);border:1px dashed var(--gray-300);">
+            <div class="dashboard-chart-surface dashboard-chart-surface--growth">
               <canvas id="growthChart"></canvas>
             </div>
           </div>
         </div>
-      </div>
-      <div class="col-12 col-xl-4">
-        <div class="pm-card h-100">
+        </div>
+        <div>
+          <div class="pm-card">
           <div class="pm-card__hd"><span class="pm-card__title"><i class="bi bi-pie-chart-fill"></i> Allocation</span></div>
           <div class="pm-card__bd">
-            <div style="height:240px;display:flex;align-items:center;justify-content:center;background:var(--gray-50);border-radius:var(--r-sm);border:1px dashed var(--gray-300);">
+            <div class="dashboard-chart-surface dashboard-chart-surface--allocation">
               <canvas id="allocChart"></canvas>
             </div>
           </div>
         </div>
-      </div>
-    </div>
+        </div>
+      </section>
 
-    <!-- Recent Transactions -->
-    <div class="row g-3" id="transactions-section">
-      <div class="col-12 col-xl-7">
-        <div class="pm-card">
+      <section class="dashboard-layout__bottom" id="transactions-section">
+        <div>
+          <div class="pm-card">
           <div class="pm-card__hd">
             <span class="pm-card__title"><i class="bi bi-arrow-left-right"></i> Recent Transactions</span>
             <a href="transactions.html" style="font-size:.78rem;color:var(--pink-txt);">View all</a>
@@ -161,9 +179,9 @@
             </div>
           </div>
         </div>
-      </div>
-      <div class="col-12 col-xl-5" id="portfolio-section">
-        <div class="pm-card">
+        </div>
+        <div id="portfolio-section">
+          <div class="pm-card">
           <div class="pm-card__hd">
             <span class="pm-card__title"><i class="bi bi-folder2-open"></i> Portfolio Summary</span>
             <a href="portfolios.html" style="font-size:.78rem;color:var(--pink-txt);">Manage</a>
@@ -172,13 +190,46 @@
             <div style="padding:8px 0;color:var(--gray-500);"><span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Loading investment summary...</div>
           </div>
         </div>
-      </div>
+        </div>
+      </section>
     </div>
   </main>
+
+  <div class="modal fade" id="addMilestoneModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content" style="border-radius:var(--r-md);border:1px solid var(--gray-300);">
+        <div class="modal-header" style="border-bottom:1px solid var(--gray-200);">
+          <h5 class="modal-title" id="milestoneModalTitle" style="font-size:.95rem;font-weight:700;">Add Milestone</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <form id="addMilestoneForm">
+          <input type="hidden" id="milestoneEditId" name="milestoneEditId" />
+          <div class="modal-body">
+            <div class="mb-3">
+              <label for="milestoneItem" class="form-label" style="font-size:.8rem;font-weight:600;color:var(--gray-700);">Item Name</label>
+              <input id="milestoneItem" name="item" type="text" class="form-control" maxlength="255" required placeholder="Tesla Model 3" />
+            </div>
+            <div>
+              <label for="milestonePrice" class="form-label" style="font-size:.8rem;font-weight:600;color:var(--gray-700);">Target Price</label>
+              <input id="milestonePrice" name="price" type="number" class="form-control" min="0.01" step="0.01" required placeholder="e.g. 50000" />
+            </div>
+          </div>
+          <div class="modal-footer" style="border-top:1px solid var(--gray-200);">
+            <button type="button" class="pm-btn pm-btn--outline" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="pm-btn pm-btn--primary" id="milestoneSubmitBtn">
+              <i class="bi bi-check2"></i> Save Milestone
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
   <div class="pm-toast-stack" id="toasts"></div>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
   <script src="js/api.js"></script>
   <script src="js/auth.js"></script>
+  <script src="js/currency.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <script src="js/dashboard.js"></script>
 

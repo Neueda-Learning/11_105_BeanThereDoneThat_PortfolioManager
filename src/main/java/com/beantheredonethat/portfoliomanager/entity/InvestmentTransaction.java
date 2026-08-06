@@ -11,6 +11,7 @@ public class InvestmentTransaction {
     private String symbol;
     private String companyName;
     private String assetType;
+    private String currency;
 
     private LocalDate transactionDate;
     private String transactionType;
@@ -27,6 +28,7 @@ public class InvestmentTransaction {
             String symbol,
             String companyName,
             String assetType,
+            String currency,
             LocalDate transactionDate,
             String transactionType,
             BigDecimal quantity,
@@ -38,6 +40,7 @@ public class InvestmentTransaction {
         this.symbol = symbol;
         this.companyName = companyName;
         this.assetType = assetType;
+        this.currency = currency;
         this.transactionDate = transactionDate;
         this.transactionType = transactionType;
         this.quantity = quantity;
@@ -83,6 +86,14 @@ public class InvestmentTransaction {
 
     public void setAssetType(String assetType) {
         this.assetType = assetType;
+    }
+
+    public String getCurrency() {
+        return currency;
+    }
+
+    public void setCurrency(String currency) {
+        this.currency = currency;
     }
 
     public LocalDate getTransactionDate() {
