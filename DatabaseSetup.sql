@@ -63,9 +63,9 @@ CREATE TABLE Investment_Transaction (
         ON UPDATE CASCADE
 );
 
-ALTER TABLE Investment ADD COLUMN Exchange VARCHAR(50);
+#ALTER TABLE Investment ADD COLUMN Exchange VARCHAR(50);
 
-ALTER TABLE Investment ADD COLUMN Currency VARCHAR(10);
+#ALTER TABLE Investment ADD COLUMN Currency VARCHAR(10);
 
 ALTER TABLE Investment ADD COLUMN scheme_code VARCHAR(50) NULL;
 
@@ -81,8 +81,8 @@ CREATE TABLE Milestone (
         ON UPDATE CASCADE
 );
 
---ALTER TABLE Milestone
---    ADD COLUMN image_url VARCHAR(500) NULL;
+ALTER TABLE Milestone
+    ADD COLUMN image_url VARCHAR(500) NULL;
 
---ALTER TABLE Milestone
---    ADD COLUMN display_order INT NOT NULL DEFAULT 0;
+ALTER TABLE Milestone
+    ADD COLUMN display_order INT NOT NULL DEFAULT 0;
