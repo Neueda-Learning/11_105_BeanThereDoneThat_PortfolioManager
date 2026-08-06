@@ -15,6 +15,8 @@ services:
 
     volumes:
       - mysql-data:/var/lib/mysql
+      # Ensure the database schema is initialized on first container start
+      - ./schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
 
     networks:
       - springboot-network
